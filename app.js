@@ -201,11 +201,37 @@ async function loadReports(){
 
 }
 
+async function getStreetName(lat,lng){
+
+  try{
+
+    const url=`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+
+    const res = await fetch(url)
+
+    const data = await res.json()
+
+    if(data.address.road){
+      return data.address.road
+    }
+
+    if(data.display_name){
+      return data.display_name.split(",")[0]
+    }
+
+  }catch(e){
+    console.log("errore geocoding",e)
+  }
+
+  return "Via sconosciuta"
+
+}
+
 
 // AGGIUNGI REPORT
 async function addReport(lat,lng,description){
 
-  const street = "Via sconosciuta"
+  const street = await getStreetName(lat,lng)
 
   const {data} = await supabase
   .from("poop_reports")
@@ -217,6 +243,29 @@ async function addReport(lat,lng,description){
   })
   .select()
   .single()
+
+  // AGGIUNGE SUBITO MARKER (senza aspettare realtime)
+
+  const marker = L.marker([data.latitude,data.longitude],{
+    icon:poopIcon
+  })
+
+  clusterGroup.addLayer(marker)
+
+  const date = new Date(data.created_at)
+  const formatted = date.toLocaleString()
+
+  marker.bindTooltip(`Aggiunta il: ${formatted}\n${street}`,{direction:"top"})
+
+  markers[data.id] = { marker, street, created_at:data.created_at, description }
+  allReports[data.id] = { street, created_at:data.created_at, description }
+
+  enableRemove(marker,data.id)
+
+  addChat(`✅ Cacca aggiunta il ${formatted} in ${street}`,data.id)
+
+  activeCount++
+  updateStats()
 
   await supabase.from("poop_events").insert({
     report_id:data.id,
@@ -325,6 +374,15 @@ marker.on("dblclick", function(e){
 L.DomEvent.stopPropagation(e)
 
 deleteReport(id)
+
+clusterGroup.removeLayer(markers[id].marker)
+
+delete markers[id]
+
+activeCount--
+deletedCount++
+
+updateStats()
 
 })
 
