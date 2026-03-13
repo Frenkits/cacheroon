@@ -303,6 +303,8 @@ deleteReport(id)
 
 clusterGroup.removeLayer(markers[id].marker)
 
+addChat(`❌ Cacca rimossa`, id)
+
 delete markers[id]
 
 activeCount--
