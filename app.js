@@ -1,5 +1,4 @@
-// app.js - versione Supabase pronta
-
+// app.js - versione aggiornata Supabase Realtime
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
 // --- CONFIGURAZIONE SUPABASE ---
@@ -110,18 +109,30 @@ loadReports().then(data=>{
 });
 
 // --- REALTIME SUPABASE ---
-supabase.from("poop_reports").on("INSERT", payload=>{
-  const p=payload.new;
-  if(!markers[p.id]){
-    const marker=L.marker([p.latitude,p.longitude],{icon:poopIcon});
-    clusterGroup.addLayer(marker);
-    markers[p.id]={marker, street:p.street, created_at:p.created_at, description:p.description};
-    allReports[p.id]={street:p.street, created_at:p.created_at, description:p.description};
-    enableRemove(marker,p.id);
-    addChat(`✅ Cacca aggiunta in ${p.street}`, p.id);
-    activeCount++; updateStats();
-  }
-}).subscribe();
+const realtimeChannel = supabase
+  .channel('poop_reports_channel')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'poop_reports' }, payload => {
+    const p = payload.new;
+    if(payload.eventType === 'INSERT' && !markers[p.id]){
+      const marker = L.marker([p.latitude, p.longitude], { icon: poopIcon });
+      clusterGroup.addLayer(marker);
+      markers[p.id] = { marker, street: p.street, created_at: p.created_at, description: p.description };
+      allReports[p.id] = { street: p.street, created_at: p.created_at, description: p.description };
+      enableRemove(marker, p.id);
+      addChat(`✅ Cacca aggiunta in ${p.street}`, p.id);
+      activeCount++; updateStats();
+    }
+    if(payload.eventType === 'DELETE'){
+      if(markers[p.id]){
+        clusterGroup.removeLayer(markers[p.id].marker);
+        addChat(`❌ Cacca rimossa`, p.id);
+        delete markers[p.id];
+        activeCount--; deletedCount++; updateStats();
+        if(allReports[p.id]) allReports[p.id].deleted_at = new Date().toISOString();
+      }
+    }
+  })
+  .subscribe();
 
 // --- CLICK MAPPA PER NUOVA CACCA ---
 map.on("click", async e=>{
