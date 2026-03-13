@@ -1,5 +1,3 @@
-// app.js - Supabase JS 2.x + Realtime corretto
-
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
 // --- CONFIGURAZIONE SUPABASE ---
@@ -26,8 +24,8 @@ let userMarker = null, accuracyCircle = null, userPosition = null;
 
 if ("geolocation" in navigator){
   navigator.geolocation.watchPosition(pos=>{
-    const lat=pos.coords.latitude, lng=pos.coords.longitude, acc=pos.coords.accuracy;
-    userPosition=[lat,lng];
+    const lat = pos.coords.latitude, lng = pos.coords.longitude, acc = pos.coords.accuracy;
+    userPosition = [lat,lng];
     localStorage.setItem("lastUserPosition", JSON.stringify(userPosition));
 
     if(!userMarker){
@@ -40,7 +38,6 @@ if ("geolocation" in navigator){
       accuracyCircle.setRadius(acc);
     }
   }, err=>{
-    console.log("GPS errore:",err);
     const savedPos = localStorage.getItem("lastUserPosition");
     if(savedPos){ userPosition = JSON.parse(savedPos); map.setView(userPosition,16); }
   }, { enableHighAccuracy:true, maximumAge:1000, timeout:10000 });
@@ -111,10 +108,9 @@ loadReports().then(data=>{
 });
 
 // --- REALTIME SUPABASE ---
-const realtimeChannel = supabase
-  .channel('poop_reports_channel')
+supabase.channel('poop_reports_channel')
   .on('postgres_changes', { event:'*', schema:'public', table:'poop_reports' }, payload=>{
-    const p = payload.new;
+    const p = payload.new || payload.old;
     if(payload.eventType === 'INSERT' && !markers[p.id]){
       const marker = L.marker([p.latitude,p.longitude],{icon:poopIcon});
       clusterGroup.addLayer(marker);
@@ -124,14 +120,12 @@ const realtimeChannel = supabase
       addChat(`✅ Cacca aggiunta in ${p.street}`, p.id);
       activeCount++; updateStats();
     }
-    if(payload.eventType === 'DELETE'){
-      if(markers[p.id]){
-        clusterGroup.removeLayer(markers[p.id].marker);
-        addChat(`❌ Cacca rimossa`, p.id);
-        delete markers[p.id];
-        activeCount--; deletedCount++; updateStats();
-        if(allReports[p.id]) allReports[p.id].deleted_at = new Date().toISOString();
-      }
+    if(payload.eventType === 'DELETE' && markers[p.id]){
+      clusterGroup.removeLayer(markers[p.id].marker);
+      addChat(`❌ Cacca rimossa`, p.id);
+      delete markers[p.id];
+      activeCount--; deletedCount++; updateStats();
+      if(allReports[p.id]) allReports[p.id].deleted_at = new Date().toISOString();
     }
   })
   .subscribe();
