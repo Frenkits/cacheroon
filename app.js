@@ -12,11 +12,11 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 const map = L.map('map', {
   center: [41.9, 12.5],
   zoom: 13,
-  maxZoom: 19   // <- importante per MarkerCluster
+  maxZoom: 19
 });
 map.doubleClickZoom.disable()
 
-// cluster cacche
+// --- CLUSTER CACCHÉ ---
 const clusterGroup = L.markerClusterGroup({
   iconCreateFunction: function(cluster) {
     const count = cluster.getChildCount();
@@ -44,14 +44,11 @@ let userPosition = null
 
 if ("geolocation" in navigator) {
   navigator.geolocation.watchPosition(position => {
-
     const lat = position.coords.latitude;
     const lng = position.coords.longitude;
     const accuracy = position.coords.accuracy;
 
     userPosition = [lat,lng];
-
-    // Salva la posizione in localStorage
     localStorage.setItem("lastUserPosition", JSON.stringify(userPosition));
 
     if(!userMarker){
@@ -105,7 +102,7 @@ const markers = {}
 const allReports = {}
 const chat = document.getElementById("chat")
 
-// --- CONTATORI FOOTER ---
+// --- FOOTER ---
 const activeCountEl = document.getElementById("active-count")
 const deletedCountEl = document.getElementById("deleted-count")
 const totalCountEl = document.getElementById("total-count")
@@ -137,7 +134,7 @@ async function loadStats(){
 }
 loadStats();
 
-// --- Pannello dettagli ---
+// --- DETTAGLI ---
 const details = document.getElementById("details")
 
 // --- CHAT ---
@@ -226,7 +223,7 @@ async function loadReports(){
 }
 loadReports();
 
-// --- AGGIUNTA REPORT ---
+// --- FUNZIONE AGGIUNTA REPORT CON REVERSE GEOCODING ---
 async function addReport(lat, lng, description){
   let street = "Via sconosciuta";
 
@@ -234,7 +231,6 @@ async function addReport(lat, lng, description){
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
     const data = await res.json();
     if(data.address){
-      // preferiamo strada completa se disponibile
       street = data.address.road || data.address.pedestrian || data.address.cycleway || street;
       if(data.address.house_number){
         street += ` ${data.address.house_number}`;
