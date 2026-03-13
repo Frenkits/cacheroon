@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="screen-orientation" content="landscape">
+  <meta name="orientation" content="landscape">
+  <title>Cacheroon</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- MarkerCluster CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      display: flex;
+      font-family: sans-serif;
+    }
+    #chat {
+      width: 250px;
+      border-right: 1px solid #ccc;
+      padding: 10px;
+      padding-bottom: 35px;
+      overflow-y: auto;
+      background: #f9f9f9;
+      box-sizing: border-box;
+    }
+    #map {
+      flex: 1;
+      height: 100%;
+      padding-bottom: 35px;
+      box-sizing: border-box;
+    }
+    #details {
+      width: 250px;
+      border-left: 1px solid #ccc;
+      padding: 10px;
+      padding-bottom: 35px;
+      box-sizing: border-box;
+      background: #f0f0f0;
+      overflow-y: auto;
+    }
+    .chat-entry { margin-bottom: 5px; cursor: pointer; }
+    .poop-marker{ font-size: 26px; text-align: center; line-height: 30px; }
+    .poop-cluster { text-align: center; font-size: 20px; line-height: 20px; color: #000; }
+
+    #footer {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 30px;
+      background: #222; color: white;
+      display: flex; justify-content: space-between;
+      align-items: center;
+      padding: 0 10px;
+      font-size: 14px;
+      z-index: 1000;
+    }
+    #footer-left { font-weight: normal; }
+    #footer-right { gap: 15px; }
+
+    @media screen and (orientation: portrait) {
+      body::before {
+        content: "Cacheroon funziona in orizzontale. Ruota il telefono in orizzontale 📱➡️";
+        position: fixed; top:0; left:0;
+        width:100%; height:100%;
+        background:white; color:black;
+        font-size:24px; display:flex;
+        align-items:center; justify-content:center; text-align:center;
+        z-index:9999;
+      }
+      #map,#chat,#details { display:none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="chat"></div>
+  <div id="map"></div>
+  <div id="details">
+    <h3>Dettagli</h3>
+    <div id="detail-content">Seleziona un messaggio in chat</div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer id="footer">
+    <div id="footer-left">Cacheroon &copy; 2026 - Tutti i diritti riservati</div>
+    <div id="footer-right">
+      <span id="active-count">Attive: 0</span> |
+      <span id="deleted-count">Eliminate: 0</span> |
+      <span id="total-count">Totali: 0</span>
+    </div>
+  </footer>
+
+  <!-- LEAFLET JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <!-- SUPABASE JS -->
+  <script type="module" src="app.js"></script>
+
+</body>
+</html>

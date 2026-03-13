@@ -1,0 +1,9 @@
+{
+  "name": "Cacheroon",
+  "short_name": "Cacheroon",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#ffffff",
+  "theme_color": "#222222"
+}
