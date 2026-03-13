@@ -5,308 +5,407 @@ const SUPABASE_URL = "https://gvlwrwcbcbsdjiauzxuq.supabase.co"
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2bHdyd2NiY2JzZGppYXV6eHVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0MTYxNDMsImV4cCI6MjA4ODk5MjE0M30.uIDogfXNncPKjjwwMt-RUwpjpg6Qaa_pWCsZm6bOV1g"
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
-// MAPPA
-const map = L.map('map',{
-  center:[41.9,12.5],
-  zoom:13,
-  maxZoom:19
+
+// app.js
+const map = L.map('map', {
+  center: [41.9, 12.5],
+  zoom: 13,
+  maxZoom: 19
 })
 map.doubleClickZoom.disable()
 
-// CLUSTER
+// cluster cacche
 const clusterGroup = L.markerClusterGroup({
-  iconCreateFunction: cluster=>{
-    const count = cluster.getChildCount()
+  iconCreateFunction: function(cluster) {
+    const count = cluster.getChildCount();
     return L.divIcon({
-      html:`💩<br>${count}`,
-      className:'poop-cluster',
-      iconSize:[40,40],
-      iconAnchor:[20,20]
-    })
+      html: `💩<br>${count}`,
+      className: 'poop-cluster',
+      iconSize: [40, 40],
+      iconAnchor: [20, 20]
+    });
   }
-})
+});
 
-map.addLayer(clusterGroup)
+map.addLayer(clusterGroup);
 
 const poopIcon = L.divIcon({
-  html:"💩",
-  className:"poop-marker",
-  iconSize:[30,30],
-  iconAnchor:[15,15]
+  html: "💩",
+  className: "poop-marker",
+  iconSize: [30,30],
+  iconAnchor: [15,15]
 })
+
 
 // POSIZIONE UTENTE
-let userMarker=null
-let accuracyCircle=null
-let userPosition=null
+let userMarker = null
+let accuracyCircle = null
+let userPosition = null
 
-if("geolocation" in navigator){
+if ("geolocation" in navigator) {
 
-navigator.geolocation.watchPosition(pos=>{
+  navigator.geolocation.watchPosition(position => {
 
-const lat=pos.coords.latitude
-const lng=pos.coords.longitude
-const acc=pos.coords.accuracy
+    const lat = position.coords.latitude;
+    const lng = position.coords.longitude;
+    const accuracy = position.coords.accuracy;
 
-userPosition=[lat,lng]
+    userPosition = [lat,lng];
 
-localStorage.setItem("lastUserPosition",JSON.stringify(userPosition))
+    localStorage.setItem("lastUserPosition", JSON.stringify(userPosition));
 
-if(!userMarker){
+    if(!userMarker){
+      userMarker = L.circleMarker([lat,lng],{
+        radius:8,
+        color:"#007bff",
+        fillColor:"#007bff",
+        fillOpacity:1
+      }).addTo(map);
 
-userMarker=L.circleMarker([lat,lng],{
-radius:8,
-color:"#007bff",
-fillColor:"#007bff",
-fillOpacity:1
-}).addTo(map)
+      accuracyCircle = L.circle([lat,lng],{
+        radius: accuracy,
+        color:"#007bff",
+        fillColor:"#007bff",
+        fillOpacity:0.15,
+        weight:1
+      }).addTo(map);
 
-accuracyCircle=L.circle([lat,lng],{
-radius:acc,
-color:"#007bff",
-fillColor:"#007bff",
-fillOpacity:0.15,
-weight:1
-}).addTo(map)
+      map.setView([lat,lng],16);
 
-map.setView([lat,lng],16)
+    } else {
+      userMarker.setLatLng([lat,lng]);
+      accuracyCircle.setLatLng([lat,lng]);
+      accuracyCircle.setRadius(accuracy);
+    }
 
-}else{
-
-userMarker.setLatLng([lat,lng])
-accuracyCircle.setLatLng([lat,lng])
-accuracyCircle.setRadius(acc)
-
-}
-
-})
+  });
 
 }
 
-// DATI
-const markers={}
-const allReports={}
 
-const chat=document.getElementById("chat")
-const details=document.getElementById("details")
+const markers = {}
+const allReports = {}
+const chat = document.getElementById("chat")
 
 // CONTATORI
-const activeCountEl=document.getElementById("active-count")
-const deletedCountEl=document.getElementById("deleted-count")
-const totalCountEl=document.getElementById("total-count")
+const activeCountEl = document.getElementById("active-count")
+const deletedCountEl = document.getElementById("deleted-count")
+const totalCountEl = document.getElementById("total-count")
 
-let activeCount=0
-let deletedCount=0
+let activeCount = 0
+let deletedCount = 0
 
 function updateStats(){
-activeCountEl.textContent=`Attive: ${activeCount}`
-deletedCountEl.textContent=`Eliminate: ${deletedCount}`
-totalCountEl.textContent=`Totali: ${activeCount+deletedCount}`
+  activeCountEl.textContent = `Attive: ${activeCount}`
+  deletedCountEl.textContent = `Eliminate: ${deletedCount}`
+  totalCountEl.textContent = `Totali: ${activeCount + deletedCount}`
 }
+
+const details = document.getElementById("details")
+
 
 // CHAT
-function addChat(message,id=null){
+function addChat(message, reportId=null){
+  const entry = document.createElement("div")
+  entry.className = "chat-entry"
+  entry.textContent = message
 
-const entry=document.createElement("div")
-entry.className="chat-entry"
-entry.textContent=message
+  if(reportId){
+    entry.style.cursor = "pointer"
+    entry.addEventListener("click", ()=>{
+      const report = allReports[reportId]
+      if(report){
+        const created = new Date(report.created_at).toLocaleString()
+        const deleted = report.deleted_at ? new Date(report.deleted_at).toLocaleString() : "Ancora presente"
+        details.innerHTML = `
+          <strong>Segnalazione ID:</strong> ${reportId}<br>
+          <strong>Data inserimento:</strong> ${created}<br>
+          <strong>Data rimozione:</strong> ${deleted}<br>
+          <strong>Via:</strong> ${report.street}<br>
+          <strong>Descrizione:</strong> ${report.description || "Nessuna"}
+        `
+      }
+    })
+  }
 
-if(id){
+  chat.appendChild(entry)
 
-entry.onclick=()=>{
+  if(chat.children.length > 50){
+    chat.removeChild(chat.firstChild)
+  }
 
-const r=allReports[id]
-
-if(r){
-
-const created=new Date(r.created_at).toLocaleString()
-const deleted=r.deleted_at?new Date(r.deleted_at).toLocaleString():"Ancora presente"
-
-details.innerHTML=`
-<strong>ID:</strong> ${id}<br>
-<strong>Inserita:</strong> ${created}<br>
-<strong>Rimossa:</strong> ${deleted}<br>
-<strong>Via:</strong> ${r.street}<br>
-<strong>Descrizione:</strong> ${r.description||"Nessuna"}
-`
-
+  chat.scrollTop = chat.scrollHeight
 }
 
-}
-
-}
-
-chat.appendChild(entry)
-
-if(chat.children.length>50){
-chat.removeChild(chat.firstChild)
-}
-
-chat.scrollTop=chat.scrollHeight
-
-}
 
 // CARICA EVENTI
 async function loadEvents(){
 
-const {data}=await supabase
-.from("poop_events")
-.select("*")
-.order("timestamp",{ascending:true})
-.limit(50)
+  const {data} = await supabase
+  .from("poop_events")
+  .select("*")
+  .order("timestamp",{ascending:true})
 
-data.forEach(ev=>{
+  data.forEach(ev=>{
+    const formatted = new Date(ev.timestamp).toLocaleString()
+    const street = ev.street || "Via sconosciuta"
+    const description = ev.description || null
 
-const formatted=new Date(ev.timestamp).toLocaleString()
+    if(ev.type==="add"){
+      addChat(`✅ Cacca segnalata il ${formatted} in ${street}`, ev.report_id)
+      allReports[ev.report_id] = { street, created_at: ev.timestamp, description }
+    }
 
-if(ev.type==="add"){
-addChat(`✅ Cacca segnalata il ${formatted} in ${ev.street}`,ev.report_id)
+    if(ev.type==="delete"){
+      addChat(`❌ Cacca rimossa il ${formatted} in ${street}`, ev.report_id)
+      if(allReports[ev.report_id]){
+        allReports[ev.report_id].deleted_at = ev.timestamp
+      }
+    }
+  })
+
 }
 
-if(ev.type==="delete"){
-addChat(`❌ Cacca rimossa il ${formatted} in ${ev.street}`,ev.report_id)
-}
 
-})
+// LAYER MAPPA
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map)
 
-}
 
 // CARICA REPORT
 async function loadReports(){
 
-const {data}=await supabase
-.from("poop_reports")
-.select("*")
+  const {data} = await supabase
+  .from("poop_reports")
+  .select("*")
 
-data.forEach(p=>{
+  data.forEach(p=>{
+    const marker = L.marker([p.latitude,p.longitude],{
+      icon: poopIcon
+    })
+    clusterGroup.addLayer(marker)
 
-const marker=L.marker([p.latitude,p.longitude],{icon:poopIcon})
-clusterGroup.addLayer(marker)
+    const date = new Date(p.created_at)
+    const formatted = date.toLocaleString()
 
-markers[p.id]={marker,street:p.street,created_at:p.created_at,description:p.description}
-allReports[p.id]={street:p.street,created_at:p.created_at,description:p.description}
+    marker.bindTooltip(`Aggiunta il: ${formatted}\n${p.street}`, {direction:"top"})
 
-enableRemove(marker,p.id)
+    markers[p.id] = { marker: marker, street: p.street, created_at: p.created_at, description: p.description }
+    allReports[p.id] = { street: p.street, created_at: p.created_at, description: p.description }
 
-activeCount++
+    enableRemove(marker,p.id)
 
-})
+    activeCount++
+  })
 
-updateStats()
+  updateStats()
 
 }
+
 
 // AGGIUNGI REPORT
 async function addReport(lat,lng,description){
 
-const street="Via sconosciuta"
+  const street = "Via sconosciuta"
 
-const {data}=await supabase
-.from("poop_reports")
-.insert({
-latitude:lat,
-longitude:lng,
-street,
-description
-})
-.select()
-.single()
+  const {data} = await supabase
+  .from("poop_reports")
+  .insert({
+    latitude:lat,
+    longitude:lng,
+    street,
+    description
+  })
+  .select()
+  .single()
 
-await supabase.from("poop_events").insert({
-report_id:data.id,
-type:"add",
-street,
-description
-})
+  await supabase.from("poop_events").insert({
+    report_id:data.id,
+    type:"add",
+    street,
+    description
+  })
 
 }
 
-// ELIMINA
+
+// DELETE
 async function deleteReport(id){
 
-await supabase.from("poop_reports").delete().eq("id",id)
+  await supabase.from("poop_reports").delete().eq("id",id)
 
-await supabase.from("poop_events").insert({
-report_id:id,
-type:"delete",
-street:markers[id].street
-})
+  await supabase.from("poop_events").insert({
+    report_id:id,
+    type:"delete",
+    street:markers[id].street
+  })
 
 }
+
 
 // REALTIME
 supabase
 .channel("poop-live")
-.on("postgres_changes",{event:"INSERT",schema:"public",table:"poop_reports"},payload=>{
+.on(
+'postgres_changes',
+{event:'INSERT',schema:'public',table:'poop_reports'},
+payload=>{
 
-const p=payload.new
+const p = payload.new
 
-if(markers[p.id]) return
+if(!markers[p.id]){
 
-const marker=L.marker([p.latitude,p.longitude],{icon:poopIcon})
+const marker = L.marker([p.latitude,p.longitude],{
+icon:poopIcon
+})
+
 clusterGroup.addLayer(marker)
 
-markers[p.id]={marker,street:p.street,created_at:p.created_at,description:p.description}
-allReports[p.id]={street:p.street,created_at:p.created_at,description:p.description}
+const date = new Date(p.created_at)
+const formatted = date.toLocaleString()
+
+marker.bindTooltip(`Aggiunta il: ${formatted}\n${p.street}`, {direction:"top"})
+
+markers[p.id] = { marker: marker, street: p.street, created_at: p.created_at, description: p.description }
+allReports[p.id] = { street: p.street, created_at: p.created_at, description: p.description }
 
 enableRemove(marker,p.id)
 
-addChat(`✅ Cacca aggiunta in ${p.street}`,p.id)
+addChat(`✅ Cacca aggiunta il ${formatted} in ${p.street}`, p.id)
 
 activeCount++
 updateStats()
 
+}
+
 })
 .subscribe()
 
+
+
 // CLICK MAPPA
-map.on("click",e=>{
+map.on("click", function(e){
 
-const description=prompt("Inserisci una descrizione della cacca")
+  const description = prompt("Inserisci una descrizione della cacca (facoltativo)")
 
-addReport(e.latlng.lat,e.latlng.lng,description)
+  addReport(
+    e.latlng.lat,
+    e.latlng.lng,
+    description
+  )
 
 })
 
-// CANCELLAZIONE
+
+// CANCELLA
 function enableRemove(marker,id){
 
-marker.on("click",()=>{
+marker.on("click", function(e){
 
-const r=allReports[id]
+L.DomEvent.stopPropagation(e)
 
-const created=new Date(r.created_at).toLocaleString()
+const report = allReports[id]
 
-details.innerHTML=`
-<strong>ID:</strong> ${id}<br>
-<strong>Inserita:</strong> ${created}<br>
-<strong>Via:</strong> ${r.street}<br>
-<strong>Descrizione:</strong> ${r.description||"Nessuna"}
+if(report){
+
+const created = new Date(report.created_at).toLocaleString()
+
+details.innerHTML = `
+<strong>Segnalazione ID:</strong> ${id}<br>
+<strong>Data inserimento:</strong> ${created}<br>
+<strong>Via:</strong> ${report.street}<br>
+<strong>Descrizione:</strong> ${report.description || "Nessuna"}
 `
+
+}
 
 })
 
-marker.on("dblclick",()=>{
+marker.on("dblclick", function(e){
+
+L.DomEvent.stopPropagation(e)
 
 deleteReport(id)
-
-clusterGroup.removeLayer(markers[id].marker)
-
-addChat(`❌ Cacca rimossa`,id)
-
-delete markers[id]
-
-activeCount--
-deletedCount++
-
-updateStats()
 
 })
 
 }
 
-// TILE
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map)
+
+// BOTTONI
+const locateControl = L.control({position:"topleft"})
+
+locateControl.onAdd = function(){
+
+const btn = L.DomUtil.create("button")
+
+btn.innerHTML = "📍"
+btn.style.background = "white"
+btn.style.border = "1px solid #ccc"
+btn.style.padding = "6px"
+btn.style.cursor = "pointer"
+btn.style.fontSize = "18px"
+
+L.DomEvent.disableClickPropagation(btn)
+
+btn.onclick = function(e){
+L.DomEvent.stopPropagation(e)
+
+if(userPosition){
+map.setView(userPosition,17)
+}
+
+}
+
+return btn
+
+}
+
+locateControl.addTo(map)
+
+
+
+const poopControl = L.control({position:"topleft"})
+
+poopControl.onAdd = function(){
+
+const btn = L.DomUtil.create("button")
+
+btn.innerHTML = "💩"
+btn.style.background = "white"
+btn.style.border = "1px solid #ccc"
+btn.style.padding = "6px"
+btn.style.cursor = "pointer"
+btn.style.fontSize = "18px"
+btn.style.marginTop = "5px"
+
+L.DomEvent.disableClickPropagation(btn)
+
+btn.onclick = function(e){
+
+L.DomEvent.stopPropagation(e)
+
+if(!userPosition){
+alert("Posizione GPS non ancora disponibile")
+return
+}
+
+const description = prompt("Descrizione della cacca (facoltativa)")
+
+addReport(
+userPosition[0],
+userPosition[1],
+description
+)
+
+}
+
+return btn
+
+}
+
+poopControl.addTo(map)
+
+
 
 // START
 loadReports()
