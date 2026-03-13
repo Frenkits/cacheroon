@@ -3,8 +3,8 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
 // --- CONFIGURAZIONE SUPABASE ---
-const SUPABASE_URL = "https://xxxx.supabase.co"; // metti qui il tuo URL Supabase
-const SUPABASE_KEY = "ANON_KEY";               // metti qui la tua anon key
+const SUPABASE_URL = "https://gvlwrwcbcbsdjiauzxuq.supabase.co"; // metti qui il tuo URL Supabase
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2bHdyd2NiY2JzZGppYXV6eHVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0MTYxNDMsImV4cCI6MjA4ODk5MjE0M30.uIDogfXNncPKjjwwMt-RUwpjpg6Qaa_pWCsZm6bOV1g";               // metti qui la tua anon key
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // --- MAPPA LEAFLET ---
