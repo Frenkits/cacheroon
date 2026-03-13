@@ -1,3 +1,4 @@
+
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm"
 
 // SUPABASE
@@ -5,274 +6,245 @@ const SUPABASE_URL = "https://gvlwrwcbcbsdjiauzxuq.supabase.co"
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2bHdyd2NiY2JzZGppYXV6eHVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0MTYxNDMsImV4cCI6MjA4ODk5MjE0M30.uIDogfXNncPKjjwwMt-RUwpjpg6Qaa_pWCsZm6bOV1g"
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
-
-// app.js
-const map = L.map('map', {
-  center: [41.9, 12.5],
-  zoom: 13,
-  maxZoom: 19
+const map = L.map('map',{
+  center:[41.9,12.5],
+  zoom:13,
+  maxZoom:19
 })
+
 map.doubleClickZoom.disable()
 
-// cluster cacche
+// CLUSTER
 const clusterGroup = L.markerClusterGroup({
-  iconCreateFunction: function(cluster) {
-    const count = cluster.getChildCount();
+  iconCreateFunction: cluster=>{
+    const count = cluster.getChildCount()
     return L.divIcon({
-      html: `💩<br>${count}`,
-      className: 'poop-cluster',
-      iconSize: [40, 40],
-      iconAnchor: [20, 20]
-    });
+      html:`💩<br>${count}`,
+      className:'poop-cluster',
+      iconSize:[40,40],
+      iconAnchor:[20,20]
+    })
   }
-});
-
-map.addLayer(clusterGroup);
-
-const poopIcon = L.divIcon({
-  html: "💩",
-  className: "poop-marker",
-  iconSize: [30,30],
-  iconAnchor: [15,15]
 })
 
+map.addLayer(clusterGroup)
 
-// POSIZIONE UTENTE
-let userMarker = null
-let accuracyCircle = null
-let userPosition = null
+const poopIcon = L.divIcon({
+  html:"💩",
+  className:"poop-marker",
+  iconSize:[30,30],
+  iconAnchor:[15,15]
+})
 
-if ("geolocation" in navigator) {
+// MAPPA
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map)
 
-  navigator.geolocation.watchPosition(position => {
 
-    const lat = position.coords.latitude;
-    const lng = position.coords.longitude;
-    const accuracy = position.coords.accuracy;
+// --- POSIZIONE UTENTE ---
 
-    userPosition = [lat,lng];
+let userMarker=null
+let accuracyCircle=null
+let userPosition=null
 
-    localStorage.setItem("lastUserPosition", JSON.stringify(userPosition));
+if("geolocation" in navigator){
 
-    if(!userMarker){
-      userMarker = L.circleMarker([lat,lng],{
-        radius:8,
-        color:"#007bff",
-        fillColor:"#007bff",
-        fillOpacity:1
-      }).addTo(map);
+navigator.geolocation.watchPosition(position=>{
 
-      accuracyCircle = L.circle([lat,lng],{
-        radius: accuracy,
-        color:"#007bff",
-        fillColor:"#007bff",
-        fillOpacity:0.15,
-        weight:1
-      }).addTo(map);
+const lat=position.coords.latitude
+const lng=position.coords.longitude
+const accuracy=position.coords.accuracy
 
-      map.setView([lat,lng],16);
+userPosition=[lat,lng]
 
-    } else {
-      userMarker.setLatLng([lat,lng]);
-      accuracyCircle.setLatLng([lat,lng]);
-      accuracyCircle.setRadius(accuracy);
-    }
+localStorage.setItem("lastUserPosition",JSON.stringify(userPosition))
 
-  });
+if(!userMarker){
+
+userMarker=L.circleMarker([lat,lng],{
+radius:8,
+color:"#007bff",
+fillColor:"#007bff",
+fillOpacity:1
+}).addTo(map)
+
+accuracyCircle=L.circle([lat,lng],{
+radius:accuracy,
+color:"#007bff",
+fillColor:"#007bff",
+fillOpacity:0.15,
+weight:1
+}).addTo(map)
+
+map.setView([lat,lng],16)
+
+}else{
+
+userMarker.setLatLng([lat,lng])
+accuracyCircle.setLatLng([lat,lng])
+accuracyCircle.setRadius(accuracy)
+
+}
+
+})
 
 }
 
 
-const markers = {}
-const allReports = {}
-const chat = document.getElementById("chat")
+// STATO
+const markers={}
+const allReports={}
+const chat=document.getElementById("chat")
 
-// CONTATORI
-const activeCountEl = document.getElementById("active-count")
-const deletedCountEl = document.getElementById("deleted-count")
-const totalCountEl = document.getElementById("total-count")
+const activeCountEl=document.getElementById("active-count")
+const deletedCountEl=document.getElementById("deleted-count")
+const totalCountEl=document.getElementById("total-count")
 
-let activeCount = 0
-let deletedCount = 0
+let activeCount=0
+let deletedCount=0
 
 function updateStats(){
-  activeCountEl.textContent = `Attive: ${activeCount}`
-  deletedCountEl.textContent = `Eliminate: ${deletedCount}`
-  totalCountEl.textContent = `Totali: ${activeCount + deletedCount}`
+activeCountEl.textContent=`Attive: ${activeCount}`
+deletedCountEl.textContent=`Eliminate: ${deletedCount}`
+totalCountEl.textContent=`Totali: ${activeCount+deletedCount}`
 }
 
-const details = document.getElementById("details")
+const details=document.getElementById("details")
 
 
 // CHAT
-function addChat(message, reportId=null){
-  const entry = document.createElement("div")
-  entry.className = "chat-entry"
-  entry.textContent = message
+function addChat(message,reportId=null){
 
-  if(reportId){
-    entry.style.cursor = "pointer"
-    entry.addEventListener("click", ()=>{
-      const report = allReports[reportId]
-      if(report){
-        const created = new Date(report.created_at).toLocaleString()
-        const deleted = report.deleted_at ? new Date(report.deleted_at).toLocaleString() : "Ancora presente"
-        details.innerHTML = `
-          <strong>Segnalazione ID:</strong> ${reportId}<br>
-          <strong>Data inserimento:</strong> ${created}<br>
-          <strong>Data rimozione:</strong> ${deleted}<br>
-          <strong>Via:</strong> ${report.street}<br>
-          <strong>Descrizione:</strong> ${report.description || "Nessuna"}
-        `
-      }
-    })
-  }
+const entry=document.createElement("div")
+entry.className="chat-entry"
+entry.textContent=message
 
-  chat.appendChild(entry)
+if(reportId){
 
-  if(chat.children.length > 50){
-    chat.removeChild(chat.firstChild)
-  }
+entry.style.cursor="pointer"
 
-  chat.scrollTop = chat.scrollHeight
+entry.onclick=()=>{
+
+const report=allReports[reportId]
+
+if(report){
+
+const created=new Date(report.created_at).toLocaleString()
+const deleted=report.deleted_at?new Date(report.deleted_at).toLocaleString():"Ancora presente"
+
+details.innerHTML=`
+<strong>Segnalazione ID:</strong> ${reportId}<br>
+<strong>Data inserimento:</strong> ${created}<br>
+<strong>Data rimozione:</strong> ${deleted}<br>
+<strong>Via:</strong> ${report.street}<br>
+<strong>Descrizione:</strong> ${report.description||"Nessuna"}
+`
+
 }
 
+}
 
-// CARICA EVENTI
-async function loadEvents(){
+}
 
-  const {data} = await supabase
-  .from("poop_events")
-  .select("*")
-  .order("timestamp",{ascending:true})
+chat.appendChild(entry)
 
-  data.forEach(ev=>{
-    const formatted = new Date(ev.timestamp).toLocaleString()
-    const street = ev.street || "Via sconosciuta"
-    const description = ev.description || null
+if(chat.children.length>50){
+chat.removeChild(chat.firstChild)
+}
 
-    if(ev.type==="add"){
-      addChat(`✅ Cacca segnalata il ${formatted} in ${street}`, ev.report_id)
-      allReports[ev.report_id] = { street, created_at: ev.timestamp, description }
-    }
-
-    if(ev.type==="delete"){
-      addChat(`❌ Cacca rimossa il ${formatted} in ${street}`, ev.report_id)
-      if(allReports[ev.report_id]){
-        allReports[ev.report_id].deleted_at = ev.timestamp
-      }
-    }
-  })
+chat.scrollTop=chat.scrollHeight
 
 }
 
 
-// LAYER MAPPA
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map)
+// VIA REALE
+async function getStreetName(lat,lng){
+
+try{
+
+const url=`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+
+const res=await fetch(url)
+const data=await res.json()
+
+if(data.address.road) return data.address.road
+if(data.display_name) return data.display_name.split(",")[0]
+
+}catch(e){
+console.log(e)
+}
+
+return "Via sconosciuta"
+
+}
 
 
 // CARICA REPORT
 async function loadReports(){
 
-  const {data} = await supabase
-  .from("poop_reports")
-  .select("*")
+const {data}=await supabase
+.from("poop_reports")
+.select("*")
 
-  data.forEach(p=>{
-    const marker = L.marker([p.latitude,p.longitude],{
-      icon: poopIcon
-    })
-    clusterGroup.addLayer(marker)
+data.forEach(p=>{
 
-    const date = new Date(p.created_at)
-    const formatted = date.toLocaleString()
+const marker=L.marker([p.latitude,p.longitude],{icon:poopIcon})
 
-    marker.bindTooltip(`Aggiunta il: ${formatted}\n${p.street}`, {direction:"top"})
+clusterGroup.addLayer(marker)
 
-    markers[p.id] = { marker: marker, street: p.street, created_at: p.created_at, description: p.description }
-    allReports[p.id] = { street: p.street, created_at: p.created_at, description: p.description }
+const date=new Date(p.created_at)
+const formatted=date.toLocaleString()
 
-    enableRemove(marker,p.id)
+marker.bindTooltip(`Aggiunta il: ${formatted}\n${p.street}`,{direction:"top"})
 
-    activeCount++
-  })
+markers[p.id]={marker,street:p.street,created_at:p.created_at,description:p.description}
+allReports[p.id]={street:p.street,created_at:p.created_at,description:p.description}
 
-  updateStats()
+enableRemove(marker,p.id)
 
-}
+activeCount++
 
-async function getStreetName(lat,lng){
+})
 
-  try{
-
-    const url=`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
-
-    const res = await fetch(url)
-
-    const data = await res.json()
-
-    if(data.address.road){
-      return data.address.road
-    }
-
-    if(data.display_name){
-      return data.display_name.split(",")[0]
-    }
-
-  }catch(e){
-    console.log("errore geocoding",e)
-  }
-
-  return "Via sconosciuta"
+updateStats()
 
 }
 
 
-// AGGIUNGI REPORT
+// AGGIUNGI
 async function addReport(lat,lng,description){
 
-  const street = await getStreetName(lat,lng)
+const street=await getStreetName(lat,lng)
 
-  const {data} = await supabase
-  .from("poop_reports")
-  .insert({
-    latitude:lat,
-    longitude:lng,
-    street,
-    description
-  })
-  .select()
-  .single()
+const {data}=await supabase
+.from("poop_reports")
+.insert({
+latitude:lat,
+longitude:lng,
+street,
+description
+})
+.select()
+.single()
 
-  // AGGIUNGE SUBITO MARKER (senza aspettare realtime)
+// marker immediato
+const marker=L.marker([data.latitude,data.longitude],{icon:poopIcon})
 
-  const marker = L.marker([data.latitude,data.longitude],{
-    icon:poopIcon
-  })
+clusterGroup.addLayer(marker)
 
-  clusterGroup.addLayer(marker)
+const date=new Date(data.created_at)
+const formatted=date.toLocaleString()
 
-  const date = new Date(data.created_at)
-  const formatted = date.toLocaleString()
+marker.bindTooltip(`Aggiunta il: ${formatted}\n${street}`,{direction:"top"})
 
-  marker.bindTooltip(`Aggiunta il: ${formatted}\n${street}`,{direction:"top"})
+markers[data.id]={marker,street,created_at:data.created_at,description}
+allReports[data.id]={street,created_at:data.created_at,description}
 
-  markers[data.id] = { marker, street, created_at:data.created_at, description }
-  allReports[data.id] = { street, created_at:data.created_at, description }
+enableRemove(marker,data.id)
 
-  enableRemove(marker,data.id)
+addChat(`✅ Cacca aggiunta il ${formatted} in ${street}`,data.id)
 
-  addChat(`✅ Cacca aggiunta il ${formatted} in ${street}`,data.id)
-
-  activeCount++
-  updateStats()
-
-  await supabase.from("poop_events").insert({
-    report_id:data.id,
-    type:"add",
-    street,
-    description
-  })
+activeCount++
+updateStats()
 
 }
 
@@ -280,125 +252,50 @@ async function addReport(lat,lng,description){
 // DELETE
 async function deleteReport(id){
 
-  await supabase.from("poop_reports").delete().eq("id",id)
-
-  await supabase.from("poop_events").insert({
-    report_id:id,
-    type:"delete",
-    street:markers[id].street
-  })
+await supabase.from("poop_reports").delete().eq("id",id)
 
 }
-
-
-// REALTIME
-const channel = supabase
-.channel("poop-live")
-
-// NUOVA CACCA
-channel.on(
-'postgres_changes',
-{event:'INSERT',schema:'public',table:'poop_reports'},
-payload=>{
-
-const p = payload.new
-
-if(!markers[p.id]){
-
-const marker = L.marker([p.latitude,p.longitude],{
-icon:poopIcon
-})
-
-clusterGroup.addLayer(marker)
-
-const date = new Date(p.created_at)
-const formatted = date.toLocaleString()
-
-marker.bindTooltip(`Aggiunta il: ${formatted}\n${p.street}`, {direction:"top"})
-
-markers[p.id] = { marker: marker, street: p.street, created_at: p.created_at, description: p.description }
-allReports[p.id] = { street: p.street, created_at: p.created_at, description: p.description }
-
-enableRemove(marker,p.id)
-
-addChat(`✅ Cacca aggiunta il ${formatted} in ${p.street}`, p.id)
-
-activeCount++
-updateStats()
-
-}
-
-})
-
-// CACCA CANCELLATA
-channel.on(
-'postgres_changes',
-{event:'DELETE',schema:'public',table:'poop_reports'},
-payload=>{
-
-const id = payload.old.id
-
-if(markers[id]){
-
-clusterGroup.removeLayer(markers[id].marker)
-
-delete markers[id]
-
-activeCount--
-deletedCount++
-
-updateStats()
-
-addChat(`❌ Cacca rimossa`, id)
-
-}
-
-})
-
-channel.subscribe()
-.subscribe()
-
 
 
 // CLICK MAPPA
-map.on("click", function(e){
+map.on("click",e=>{
 
-  const description = prompt("Inserisci una descrizione della cacca (facoltativo)")
+const description=prompt("Inserisci una descrizione della cacca (facoltativo)")
 
-  addReport(
-    e.latlng.lat,
-    e.latlng.lng,
-    description
-  )
+addReport(
+e.latlng.lat,
+e.latlng.lng,
+description
+)
 
 })
 
 
-// CANCELLA
+// RIMOZIONE
 function enableRemove(marker,id){
 
-marker.on("click", function(e){
+marker.on("click",e=>{
 
 L.DomEvent.stopPropagation(e)
 
-const report = allReports[id]
+const report=allReports[id]
 
 if(report){
 
-const created = new Date(report.created_at).toLocaleString()
+const created=new Date(report.created_at).toLocaleString()
 
-details.innerHTML = `
+details.innerHTML=`
 <strong>Segnalazione ID:</strong> ${id}<br>
 <strong>Data inserimento:</strong> ${created}<br>
 <strong>Via:</strong> ${report.street}<br>
-<strong>Descrizione:</strong> ${report.description || "Nessuna"}
+<strong>Descrizione:</strong> ${report.description||"Nessuna"}
 `
 
 }
 
 })
 
-marker.on("dblclick", function(e){
+marker.on("dblclick",e=>{
 
 L.DomEvent.stopPropagation(e)
 
@@ -418,29 +315,89 @@ updateStats()
 }
 
 
+// REALTIME SUPABASE
+
+const channel=supabase.channel("poop-realtime")
+
+channel.on(
+'postgres_changes',
+{event:'INSERT',schema:'public',table:'poop_reports'},
+payload=>{
+
+const p=payload.new
+
+if(markers[p.id]) return
+
+const marker=L.marker([p.latitude,p.longitude],{icon:poopIcon})
+
+clusterGroup.addLayer(marker)
+
+const date=new Date(p.created_at)
+const formatted=date.toLocaleString()
+
+marker.bindTooltip(`Aggiunta il: ${formatted}\n${p.street}`,{direction:"top"})
+
+markers[p.id]={marker,street:p.street,created_at:p.created_at,description:p.description}
+allReports[p.id]={street:p.street,created_at:p.created_at,description:p.description}
+
+enableRemove(marker,p.id)
+
+addChat(`✅ Cacca aggiunta il ${formatted} in ${p.street}`,p.id)
+
+activeCount++
+updateStats()
+
+})
+
+channel.on(
+'postgres_changes',
+{event:'DELETE',schema:'public',table:'poop_reports'},
+payload=>{
+
+const id=payload.old.id
+
+if(!markers[id]) return
+
+clusterGroup.removeLayer(markers[id].marker)
+
+delete markers[id]
+
+activeCount--
+deletedCount++
+
+updateStats()
+
+addChat(`❌ Cacca rimossa`,id)
+
+})
+
+channel.subscribe()
+
+
 // BOTTONI
-const locateControl = L.control({position:"topleft"})
 
-locateControl.onAdd = function(){
+const locateControl=L.control({position:"topleft"})
 
-const btn = L.DomUtil.create("button")
+locateControl.onAdd=function(){
 
-btn.innerHTML = "📍"
-btn.style.background = "white"
-btn.style.border = "1px solid #ccc"
-btn.style.padding = "6px"
-btn.style.cursor = "pointer"
-btn.style.fontSize = "18px"
+const btn=L.DomUtil.create("button")
+
+btn.innerHTML="📍"
+
+btn.style.background="white"
+btn.style.border="1px solid #ccc"
+btn.style.padding="6px"
+btn.style.cursor="pointer"
+btn.style.fontSize="18px"
 
 L.DomEvent.disableClickPropagation(btn)
 
-btn.onclick = function(e){
+btn.onclick=e=>{
 L.DomEvent.stopPropagation(e)
 
 if(userPosition){
 map.setView(userPosition,17)
 }
-
 }
 
 return btn
@@ -451,23 +408,24 @@ locateControl.addTo(map)
 
 
 
-const poopControl = L.control({position:"topleft"})
+const poopControl=L.control({position:"topleft"})
 
-poopControl.onAdd = function(){
+poopControl.onAdd=function(){
 
-const btn = L.DomUtil.create("button")
+const btn=L.DomUtil.create("button")
 
-btn.innerHTML = "💩"
-btn.style.background = "white"
-btn.style.border = "1px solid #ccc"
-btn.style.padding = "6px"
-btn.style.cursor = "pointer"
-btn.style.fontSize = "18px"
-btn.style.marginTop = "5px"
+btn.innerHTML="💩"
+
+btn.style.background="white"
+btn.style.border="1px solid #ccc"
+btn.style.padding="6px"
+btn.style.cursor="pointer"
+btn.style.fontSize="18px"
+btn.style.marginTop="5px"
 
 L.DomEvent.disableClickPropagation(btn)
 
-btn.onclick = function(e){
+btn.onclick=e=>{
 
 L.DomEvent.stopPropagation(e)
 
@@ -476,7 +434,7 @@ alert("Posizione GPS non ancora disponibile")
 return
 }
 
-const description = prompt("Descrizione della cacca (facoltativa)")
+const description=prompt("Descrizione della cacca (facoltativa)")
 
 addReport(
 userPosition[0],
@@ -493,7 +451,5 @@ return btn
 poopControl.addTo(map)
 
 
-
 // START
 loadReports()
-loadEvents()
