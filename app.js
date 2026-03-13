@@ -292,9 +292,11 @@ async function deleteReport(id){
 
 
 // REALTIME
-supabase
+const channel = supabase
 .channel("poop-live")
-.on(
+
+// NUOVA CACCA
+channel.on(
 'postgres_changes',
 {event:'INSERT',schema:'public',table:'poop_reports'},
 payload=>{
@@ -327,6 +329,33 @@ updateStats()
 }
 
 })
+
+// CACCA CANCELLATA
+channel.on(
+'postgres_changes',
+{event:'DELETE',schema:'public',table:'poop_reports'},
+payload=>{
+
+const id = payload.old.id
+
+if(markers[id]){
+
+clusterGroup.removeLayer(markers[id].marker)
+
+delete markers[id]
+
+activeCount--
+deletedCount++
+
+updateStats()
+
+addChat(`❌ Cacca rimossa`, id)
+
+}
+
+})
+
+channel.subscribe()
 .subscribe()
 
 
