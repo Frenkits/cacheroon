@@ -41,7 +41,6 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map)
 
 
 // --- POSIZIONE UTENTE ---
-
 let userMarker=null
 let accuracyCircle=null
 let userPosition=null
@@ -226,7 +225,6 @@ description
 .select()
 .single()
 
-// marker immediato
 const marker=L.marker([data.latitude,data.longitude],{icon:poopIcon})
 
 clusterGroup.addLayer(marker)
@@ -251,9 +249,7 @@ updateStats()
 
 // DELETE
 async function deleteReport(id){
-
 await supabase.from("poop_reports").delete().eq("id",id)
-
 }
 
 
@@ -299,11 +295,13 @@ marker.on("dblclick",e=>{
 
 L.DomEvent.stopPropagation(e)
 
+const street=markers[id].street
+
 deleteReport(id)
 
 clusterGroup.removeLayer(markers[id].marker)
 
-addChat(`❌ Cacca rimossa`, id)
+addChat(`❌ Cacca rimossa in ${street}`,id)
 
 delete markers[id]
 
@@ -317,8 +315,7 @@ updateStats()
 }
 
 
-// REALTIME SUPABASE
-
+// REALTIME
 const channel=supabase.channel("poop-realtime")
 
 channel.on(
@@ -360,7 +357,11 @@ const id=payload.old.id
 
 if(!markers[id]) return
 
+const street=markers[id].street
+
 clusterGroup.removeLayer(markers[id].marker)
+
+addChat(`❌ Cacca rimossa in ${street}`,id)
 
 delete markers[id]
 
@@ -368,8 +369,6 @@ activeCount--
 deletedCount++
 
 updateStats()
-
-addChat(`❌ Cacca rimossa`,id)
 
 })
 
@@ -455,3 +454,4 @@ poopControl.addTo(map)
 
 // START
 loadReports()
+
