@@ -1,10 +1,9 @@
 // =========================
 // CONFIG SUPABASE
 // =========================
-const SUPABASE_URL = "https://gvlwrwcbcbsdjiauzxuq.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2bHdyd2NiY2JzZGppYXV6eHVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0MTYxNDMsImV4cCI6MjA4ODk5MjE0M30.uIDogfXNncPKjjwwMt-RUwpjpg6Qaa_pWCsZm6bOV1g";
+// Usa direttamente il client già creato in index.html
+const supabase = window.supabase;
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // =========================
 // MAPPA
