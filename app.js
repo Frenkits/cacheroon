@@ -228,7 +228,22 @@ loadReports();
 
 // --- AGGIUNTA REPORT ---
 async function addReport(lat, lng, description){
-  const street = null
+  let street = "Via sconosciuta";
+
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+    const data = await res.json();
+    if(data.address){
+      // preferiamo strada completa se disponibile
+      street = data.address.road || data.address.pedestrian || data.address.cycleway || street;
+      if(data.address.house_number){
+        street += ` ${data.address.house_number}`;
+      }
+    }
+  } catch(e){
+    console.warn("Reverse geocoding fallito", e);
+  }
+
   const { data: report, error } = await supabase
     .from('reports')
     .insert([{ latitude: lat, longitude: lng, description, street }])
