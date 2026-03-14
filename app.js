@@ -1,20 +1,20 @@
-// SUPABASE
-
+// =========================
+// SUPABASE SETUP
+// =========================
 const SUPABASE_URL = "https://gvlwrwcbcbsdjiauzxuq.supabase.co"
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2bHdyd2NiY2JzZGppYXV6eHVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0MTYxNDMsImV4cCI6MjA4ODk5MjE0M30.uIDogfXNncPKjjwwMt-RUwpjpg6Qaa_pWCsZm6bOV1g"
 
-const supabase = window.supabase.createClient(
-SUPABASE_URL,
-SUPABASE_KEY
-)
+// Creiamo client Supabase
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
 
+// =========================
 // MAPPA
-
-const map = L.map('map',{
-center:[41.9,12.5],
-zoom:13,
-maxZoom:19
+// =========================
+const map = L.map('map', {
+  center: [41.9, 12.5],
+  zoom: 13,
+  maxZoom: 19
 })
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
@@ -22,15 +22,25 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
 
 map.doubleClickZoom.disable()
 
-const clusterGroup = L.markerClusterGroup()
+const clusterGroup = L.markerClusterGroup({
+  iconCreateFunction: function(cluster) {
+    const count = cluster.getChildCount()
+    return L.divIcon({
+      html: `💩<br>${count}`,
+      className: 'poop-cluster',
+      iconSize: [40, 40],
+      iconAnchor: [20, 20]
+    })
+  }
+})
 
 map.addLayer(clusterGroup)
 
 const poopIcon = L.divIcon({
-html:"💩",
-className:"poop-marker",
-iconSize:[30,30],
-iconAnchor:[15,15]
+  html: "💩",
+  className: "poop-marker",
+  iconSize: [30,30],
+  iconAnchor: [15,15]
 })
 
 const markers = {}
@@ -40,191 +50,178 @@ const chat = document.getElementById("chat")
 const details = document.getElementById("details")
 
 
+// =========================
 // CHAT
+// =========================
+function addChat(message, reportId=null){
+  const entry = document.createElement("div")
+  entry.className = "chat-entry"
+  entry.textContent = message
 
-function addChat(message){
+  if(reportId){
+    entry.style.cursor = "pointer"
+    entry.addEventListener("click", ()=> {
+      const report = allReports[reportId]
+      if(report){
+        const created = new Date(report.created_at).toLocaleString()
+        const deleted = report.deleted_at ? new Date(report.deleted_at).toLocaleString() : "Ancora presente"
+        details.innerHTML = `
+          <strong>Segnalazione ID:</strong> ${reportId}<br>
+          <strong>Data inserimento:</strong> ${created}<br>
+          <strong>Data rimozione:</strong> ${deleted}<br>
+          <strong>Via:</strong> ${report.street}<br>
+          <strong>Descrizione:</strong> ${report.description || "Nessuna"}
+        `
+      }
+    })
+  }
 
-const entry=document.createElement("div")
-
-entry.className="chat-entry"
-
-entry.textContent=message
-
-chat.appendChild(entry)
-
-if(chat.children.length>50)
-chat.removeChild(chat.firstChild)
-
-chat.scrollTop=chat.scrollHeight
-
+  chat.appendChild(entry)
+  if(chat.children.length > 50) chat.removeChild(chat.firstChild)
+  chat.scrollTop = chat.scrollHeight
 }
 
 
-// CARICA REPORT
-
+// =========================
+// CARICA REPORT DAL DB
+// =========================
 async function loadReports(){
+  const { data, error } = await db.from("poop_reports").select("*")
+  if(error){ console.error(error); return }
 
-const {data,error}=await supabase
-.from("poop_reports")
-.select("*")
+  data.forEach(p=>{
+    const marker = L.marker([p.latitude, p.longitude], {icon: poopIcon})
+    clusterGroup.addLayer(marker)
 
-data.forEach(p=>{
+    markers[p.id] = marker
+    allReports[p.id] = {
+      street: p.street,
+      description: p.description,
+      created_at: p.created_at
+    }
 
-const marker=L.marker(
-[p.latitude,p.longitude],
-{icon:poopIcon}
-)
-
-clusterGroup.addLayer(marker)
-
-markers[p.id]=marker
-
-enableRemove(marker,p.id)
-
-})
-
+    enableRemove(marker, p.id)
+    addChat(`✅ Cacca segnalata in ${p.street}`, p.id)
+  })
 }
 
 loadReports()
 
 
+// =========================
+// CREAZIONE NUOVA SEGNALAZIONE
+// =========================
+async function createReport(lat, lng, description){
+  const street = await getStreet(lat, lng)
 
-// AGGIUNGI REPORT
+  const { data, error } = await db.from("poop_reports")
+    .insert({
+      latitude: lat,
+      longitude: lng,
+      street: street,
+      description: description
+    })
+    .select()
 
-async function createReport(lat,lng,description){
+  if(error){ console.error(error); return }
 
-const street=await getStreet(lat,lng)
+  const p = data[0]
 
-const {data,error}=await supabase
-.from("poop_reports")
-.insert({
-latitude:lat,
-longitude:lng,
-street:street,
-description:description
-})
-.select()
+  const marker = L.marker([p.latitude, p.longitude], {icon: poopIcon})
+  clusterGroup.addLayer(marker)
 
+  markers[p.id] = marker
+  allReports[p.id] = {
+    street: p.street,
+    description: p.description,
+    created_at: p.created_at
+  }
+
+  enableRemove(marker, p.id)
+  addChat(`✅ Cacca aggiunta il ${new Date(p.created_at).toLocaleString()} in ${p.street}`, p.id)
 }
 
 
-// ELIMINA
-
+// =========================
+// CANCELLA SEGNALAZIONE
+// =========================
 async function deleteReport(id){
-
-await supabase
-.from("poop_reports")
-.delete()
-.eq("id",id)
-
+  const { error } = await db.from("poop_reports").delete().eq("id", id)
+  if(error){ console.error(error) }
 }
 
 
-// CLICK MAPPA
-
-map.on("click",function(e){
-
-const description=prompt("Descrizione")
-
-createReport(
-e.latlng.lat,
-e.latlng.lng,
-description
-)
-
+// =========================
+// CLICK SULLA MAPPA
+// =========================
+map.on("click", async function(e){
+  const description = prompt("Descrizione della cacca (facoltativa)")
+  await createReport(e.latlng.lat, e.latlng.lng, description)
 })
 
 
-// REALTIME
+// =========================
+// ENABLE REMOVE MARKER
+// =========================
+function enableRemove(marker, id){
+  marker.on("dblclick", async function(e){
+    L.DomEvent.stopPropagation(e)
+    await deleteReport(id)
+  })
+}
 
-supabase
+
+// =========================
+// REVERSE GEOCODING
+// =========================
+async function getStreet(lat, lng){
+  try{
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+    const data = await res.json()
+    return data.address?.road || "Via sconosciuta"
+  }catch(err){
+    console.error(err)
+    return "Via sconosciuta"
+  }
+}
+
+
+// =========================
+// REALTIME SUPABASE
+// =========================
+db
 .channel("realtime-poop")
 .on(
-"postgres_changes",
-{
-event:"INSERT",
-schema:"public",
-table:"poop_reports"
-},
-payload=>{
+  "postgres_changes",
+  { event:"INSERT", schema:"public", table:"poop_reports" },
+  payload=>{
+    const p = payload.new
 
-const p=payload.new
+    const marker = L.marker([p.latitude, p.longitude], {icon: poopIcon})
+    clusterGroup.addLayer(marker)
 
-const marker=L.marker(
-[p.latitude,p.longitude],
-{icon:poopIcon}
-)
+    markers[p.id] = marker
+    allReports[p.id] = {
+      street: p.street,
+      description: p.description,
+      created_at: p.created_at
+    }
 
-clusterGroup.addLayer(marker)
-
-markers[p.id]=marker
-
-enableRemove(marker,p.id)
-
-addChat("💩 nuova cacca segnalata")
-
-}
+    enableRemove(marker, p.id)
+    addChat(`💩 nuova cacca segnalata il ${new Date(p.created_at).toLocaleString()} in ${p.street}`, p.id)
+  }
 )
 .on(
-"postgres_changes",
-{
-event:"DELETE",
-schema:"public",
-table:"poop_reports"
-},
-payload=>{
-
-const id=payload.old.id
-
-if(markers[id]){
-
-clusterGroup.removeLayer(markers[id])
-
-delete markers[id]
-
-addChat("❌ cacca rimossa")
-
-}
-
-}
+  "postgres_changes",
+  { event:"DELETE", schema:"public", table:"poop_reports" },
+  payload=>{
+    const id = payload.old.id
+    if(markers[id]){
+      clusterGroup.removeLayer(markers[id])
+      delete markers[id]
+      delete allReports[id]
+      addChat(`❌ Cacca rimossa`, id)
+    }
+  }
 )
 .subscribe()
-
-
-
-// REMOVE MARKER
-
-function enableRemove(marker,id){
-
-marker.on("dblclick",function(e){
-
-L.DomEvent.stopPropagation(e)
-
-deleteReport(id)
-
-})
-
-}
-
-
-// REVERSE GEOCODING
-
-async function getStreet(lat,lng){
-
-const url=`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
-
-try{
-
-const res=await fetch(url)
-
-const data=await res.json()
-
-return data.address?.road || "Via sconosciuta"
-
-}catch{
-
-return "Via sconosciuta"
-
-}
-
-}
