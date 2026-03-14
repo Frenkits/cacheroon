@@ -29,22 +29,17 @@ const poopIcon = L.divIcon({
 })
 
 // --- POSIZIONE UTENTE ---
-
 let userMarker = null
 let accuracyCircle = null
 let userPosition = null
 
 if ("geolocation" in navigator) {
-
   navigator.geolocation.watchPosition(position => {
-
     const lat = position.coords.latitude;
     const lng = position.coords.longitude;
     const accuracy = position.coords.accuracy;
 
     userPosition = [lat,lng];
-
-    // Salva la posizione in localStorage
     localStorage.setItem("lastUserPosition", JSON.stringify(userPosition));
 
     if(!userMarker){
@@ -64,16 +59,13 @@ if ("geolocation" in navigator) {
       }).addTo(map);
 
       map.setView([lat,lng],16);
-
     } else {
       userMarker.setLatLng([lat,lng]);
       accuracyCircle.setLatLng([lat,lng]);
       accuracyCircle.setRadius(accuracy);
     }
-
   }, err=>{
     console.log("GPS errore:",err);
-    // Se c'è posizione salvata, centra la mappa lì
     const savedPos = localStorage.getItem("lastUserPosition");
     if(savedPos){
       const pos = JSON.parse(savedPos);
@@ -85,9 +77,7 @@ if ("geolocation" in navigator) {
     maximumAge:1000,
     timeout:10000
   });
-
 } else {
-  // Se geolocalizzazione non disponibile, prova posizione salvata
   const savedPos = localStorage.getItem("lastUserPosition");
   if(savedPos){
     const pos = JSON.parse(savedPos);
@@ -95,12 +85,12 @@ if ("geolocation" in navigator) {
     map.setView(pos,16);
   }
 }
+
 const markers = {}
 const allReports = {} // contiene tutti i report, anche cancellati
 const chat = document.getElementById("chat")
 
 // --- CONTATORI FOOTER ---
-
 const activeCountEl = document.getElementById("active-count")
 const deletedCountEl = document.getElementById("deleted-count")
 const totalCountEl = document.getElementById("total-count")
@@ -123,16 +113,6 @@ fetch("/stats")
   updateStats()
 })
 
-// Pannello dettagli a destra della mappa
-// const details = document.createElement("div")
-// details.id = "details"
-// details.style.width = "250px"
-// details.style.borderLeft = "1px solid #ccc"
-// details.style.padding = "10px"
-// details.style.overflowY = "auto"
-// details.style.background = "#f0f0f0"
-// details.style.boxSizing = "border-box"
-// document.body.appendChild(details)
 const details = document.getElementById("details") // usa il div già presente
 
 // Funzione per aggiungere messaggi in chat
@@ -141,7 +121,6 @@ function addChat(message, reportId=null){
   entry.className = "chat-entry"
   entry.textContent = message
 
-  // click sulla chat per mostrare dettagli
   if(reportId){
     entry.style.cursor = "pointer"
     entry.addEventListener("click", ()=>{
@@ -161,12 +140,9 @@ function addChat(message, reportId=null){
   }
 
   chat.appendChild(entry)
-
-  // limite massimo messaggi
   if(chat.children.length > 50){
     chat.removeChild(chat.firstChild)
   }
-
   chat.scrollTop = chat.scrollHeight
 }
 
@@ -180,7 +156,8 @@ fetch("/events")
     const description = ev.description || null
     if(ev.type==="add"){
       addChat(`✅ Cacca segnalata il ${formatted} in ${street}`, ev.report_id)
-      allReports[ev.report_id] = { street, created_at: ev.timestamp, description }    }
+      allReports[ev.report_id] = { street, created_at: ev.timestamp, description }
+    }
     if(ev.type==="delete"){
       addChat(`❌ Cacca rimossa il ${formatted} in ${street}`, ev.report_id)
       if(allReports[ev.report_id]){
@@ -198,9 +175,7 @@ fetch("/reports")
 .then(r=>r.json())
 .then(data=>{
   data.forEach(p=>{
-    const marker = L.marker([p.latitude,p.longitude],{
-      icon: poopIcon
-    })
+    const marker = L.marker([p.latitude,p.longitude],{ icon: poopIcon })
     clusterGroup.addLayer(marker)
 
     const date = new Date(p.created_at)
@@ -217,19 +192,12 @@ fetch("/reports")
 
 // Click sulla mappa per aggiungere nuove cacche
 map.on("click", function(e){
-
   const description = prompt("Inserisci una descrizione della cacca (facoltativo)")
-
   fetch("/report",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      lat:e.latlng.lat,
-      lng:e.latlng.lng,
-      description:description
-    })
+    body:JSON.stringify({ lat:e.latlng.lat, lng:e.latlng.lng, description:description })
   })
-
 })
 
 // WebSocket per aggiornamenti in tempo reale
@@ -241,9 +209,7 @@ socket.onmessage = event=>{
   if(msg.type==="new"){
     const p = msg.data
     if(!markers[p.id]){
-      const marker = L.marker([p.latitude,p.longitude],{
-        icon: poopIcon
-      })
+      const marker = L.marker([p.latitude,p.longitude],{ icon: poopIcon })
       clusterGroup.addLayer(marker)
 
       const date = new Date(p.created_at)
@@ -280,21 +246,15 @@ socket.onmessage = event=>{
   }
 }
 
-// Funzione per cancellare i marker con click
-function enableRemove(marker, id) {
-
+// Funzione per cancellare i marker con click/double tap
+function enableRemove(marker, id){
   // CLICK = mostra dettagli
-  marker.on("click", function(e) {
+  marker.on("click", function(e){
     L.DomEvent.stopPropagation(e)
-
     const report = allReports[id]
-
-    if (report) {
+    if(report){
       const created = new Date(report.created_at).toLocaleString()
-      const deleted = report.deleted_at
-        ? new Date(report.deleted_at).toLocaleString()
-        : "Ancora presente"
-
+      const deleted = report.deleted_at ? new Date(report.deleted_at).toLocaleString() : "Ancora presente"
       details.innerHTML = `
         <strong>Segnalazione ID:</strong> ${id}<br>
         <strong>Data inserimento:</strong> ${created}<br>
@@ -306,99 +266,76 @@ function enableRemove(marker, id) {
   })
 
   // DOPPIO CLICK DESKTOP = cancella
-  marker.on("dblclick", function(e) {
+  marker.on("dblclick", function(e){
     L.DomEvent.stopPropagation(e)
-    fetch(`/report/${id}`, { method: "DELETE" })
+    fetch(`/report/${id}`,{ method:"DELETE" })
   })
 
-  // --- AGGIUNTO SUPPORTO TOUCH ---
+  // SUPPORTO TOUCH: doppio tap su mobile
   let lastTap = 0
-  marker.on("touchend", function(e) {
+  marker.on("touchend", function(e){
     const currentTime = new Date().getTime()
     const tapLength = currentTime - lastTap
-    if (tapLength < 500 && tapLength > 0) { // doppio tap entro 500ms
+    if(tapLength < 500 && tapLength > 0){
       L.DomEvent.stopPropagation(e)
-      fetch(`/report/${id}`, { method: "DELETE" })
+      fetch(`/report/${id}`,{ method:"DELETE" })
     }
     lastTap = currentTime
   })
 }
 
 // --- BOTTONE CENTRA SU DI ME ---
-
 const locateControl = L.control({position:"topleft"})
 
 locateControl.onAdd = function(){
-
   const btn = L.DomUtil.create("button")
-
   btn.innerHTML = "📍"
   btn.title = "Vai alla tua posizione"
-
   btn.style.background = "white"
   btn.style.border = "1px solid #ccc"
   btn.style.padding = "6px"
   btn.style.cursor = "pointer"
   btn.style.fontSize = "18px"
-
-  // BLOCCA propagazione alla mappa
   L.DomEvent.disableClickPropagation(btn)
 
   btn.onclick = function(e){
     L.DomEvent.stopPropagation(e)
-
     if(userPosition){
       map.setView(userPosition,17)
     }
   }
-
   return btn
 }
 
 locateControl.addTo(map)
 
 // --- BOTTONE SEGNALA CACCA QUI ---
-
 const poopControl = L.control({position:"topleft"})
 
 poopControl.onAdd = function(){
-
   const btn = L.DomUtil.create("button")
-
   btn.innerHTML = "💩"
   btn.title = "Segnala cacca qui"
-
   btn.style.background = "white"
   btn.style.border = "1px solid #ccc"
   btn.style.padding = "6px"
   btn.style.cursor = "pointer"
   btn.style.fontSize = "18px"
   btn.style.marginTop = "5px"
-
-  // evita che il click passi alla mappa
   L.DomEvent.disableClickPropagation(btn)
 
   btn.onclick = function(e){
-
     L.DomEvent.stopPropagation(e)
-
     if(!userPosition){
       alert("Posizione GPS non ancora disponibile")
       return
     }
-
     const description = prompt("Descrizione della cacca (facoltativa)")
-
     fetch("/report",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        lat:userPosition[0],
-        lng:userPosition[1],
-        description:description
-      })
+      body:JSON.stringify({ lat:userPosition[0], lng:userPosition[1], description:description })
     })
-
   }
 
   return btn
