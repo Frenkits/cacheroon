@@ -155,7 +155,7 @@ function enableRemove(marker, id) {
   marker.on("click", e => { L.DomEvent.stopPropagation(e); showDetails(id); });
 
   // doppio click desktop = cancella
-  marker.on("dblclick", e => { L.DomEvent.stopPropagation(e); deleteReport(id); });
+  //marker.on("dblclick", e => { L.DomEvent.stopPropagation(e); deleteReport(id); });
 
   // long press mobile = cancella
   let pressTimer;
