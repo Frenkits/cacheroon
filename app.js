@@ -247,7 +247,8 @@ socket.onmessage = event=>{
 }
 
 // Funzione per cancellare i marker con click/double tap
-function enableRemove(marker, id){
+function enableRemove(marker, id) {
+
   // CLICK = mostra dettagli
   marker.on("click", function(e){
     L.DomEvent.stopPropagation(e)
@@ -271,16 +272,21 @@ function enableRemove(marker, id){
     fetch(`/report/${id}`,{ method:"DELETE" })
   })
 
-  // SUPPORTO TOUCH: doppio tap su mobile
-  let lastTap = 0
+  // LONG PRESS TOUCH MOBILE
+  let pressTimer = null
+  marker.on("touchstart", function(e){
+    L.DomEvent.stopPropagation(e)
+    pressTimer = setTimeout(()=>{
+      fetch(`/report/${id}`, { method:"DELETE" })
+    }, 800) // 800ms pressione lunga
+  })
+
   marker.on("touchend", function(e){
-    const currentTime = new Date().getTime()
-    const tapLength = currentTime - lastTap
-    if(tapLength < 500 && tapLength > 0){
-      L.DomEvent.stopPropagation(e)
-      fetch(`/report/${id}`,{ method:"DELETE" })
-    }
-    lastTap = currentTime
+    clearTimeout(pressTimer)
+  })
+
+  marker.on("touchmove", function(e){
+    clearTimeout(pressTimer)
   })
 }
 
