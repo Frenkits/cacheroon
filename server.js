@@ -35,14 +35,14 @@ const pool = new Pool({
 })
 
 app.get("/reports", async (req,res)=>{
-
- const result = await pool.query(
-  "SELECT * FROM poop_reports"
- )
-
- res.json(result.rows)
-
-})
+  try {
+    const result = await pool.query("SELECT * FROM poop_reports");
+    res.json(result.rows);
+  } catch(err){
+    console.error("Errore /reports:", err); // <--- stampa l’errore completo
+    res.status(500).send("Internal Server Error");
+  }
+});
 
 app.get("/events", async (req,res)=>{
 
