@@ -281,29 +281,49 @@ socket.onmessage = event=>{
 }
 
 // Funzione per cancellare i marker con click
+// Funzione aggiornata per cancellare marker con mouse o touch
 function enableRemove(marker, id) {
   let touchTimer;
 
-  marker.on("click", function(e){
-    L.DomEvent.stopPropagation(e)
-    showDetails(id)
+  // CLICK = mostra dettagli
+  marker.on("click", function(e) {
+    L.DomEvent.stopPropagation(e);
+    showDetails(id);
   });
 
-  marker.on("touchstart", function(e){
-    touchTimer = setTimeout(()=>{
-      L.DomEvent.stopPropagation(e)
-      fetch(`/report/${id}`, { method: "DELETE" })
-    }, 500) // 500ms = tap lungo
+  // TOUCH = tap lungo per cancellare (500ms)
+  marker.on("touchstart", function(e) {
+    touchTimer = setTimeout(() => {
+      L.DomEvent.stopPropagation(e);
+      fetch(`/report/${id}`, { method: "DELETE" });
+    }, 500); // 500ms = tap lungo
   });
 
-  marker.on("touchend", function(e){
-    clearTimeout(touchTimer)
+  marker.on("touchend", function(e) {
+    clearTimeout(touchTimer);
   });
 
-  marker.on("dblclick", function(e){
-    L.DomEvent.stopPropagation(e)
-    fetch(`/report/${id}`, { method: "DELETE" })
+  // DBLCLICK = cancella con mouse
+  marker.on("dblclick", function(e) {
+    L.DomEvent.stopPropagation(e);
+    fetch(`/report/${id}`, { method: "DELETE" });
   });
+}
+
+// Funzione separata per mostrare dettagli del report
+function showDetails(id) {
+  const report = allReports[id];
+  if(report){
+    const created = new Date(report.created_at).toLocaleString();
+    const deleted = report.deleted_at ? new Date(report.deleted_at).toLocaleString() : "Ancora presente";
+    details.innerHTML = `
+      <strong>Segnalazione ID:</strong> ${id}<br>
+      <strong>Data inserimento:</strong> ${created}<br>
+      <strong>Data rimozione:</strong> ${deleted}<br>
+      <strong>Via:</strong> ${report.street}<br>
+      <strong>Descrizione:</strong> ${report.description || "Nessuna"}
+    `;
+  }
 }
 
 function showDetails(id) {
