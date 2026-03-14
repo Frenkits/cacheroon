@@ -283,28 +283,37 @@ socket.onmessage = event=>{
 // Funzione per cancellare i marker con click
 // Funzione aggiornata per cancellare marker con mouse o touch
 // --- mostra dettagli nel pannello a destra ---
+// --- mostra dettagli e aggiunge bottone Elimina ---
 function showDetails(id) {
   const report = allReports[id];
-  if (report) {
-    const created = new Date(report.created_at).toLocaleString();
-    const deleted = report.deleted_at
-      ? new Date(report.deleted_at).toLocaleString()
-      : "Ancora presente";
+  if (!report) return;
 
-    details.innerHTML = `
-      <strong>Segnalazione ID:</strong> ${id}<br>
-      <strong>Data inserimento:</strong> ${created}<br>
-      <strong>Data rimozione:</strong> ${deleted}<br>
-      <strong>Via:</strong> ${report.street}<br>
-      <strong>Descrizione:</strong> ${report.description || "Nessuna"}<br><br>
-      <button id="delete-btn">Elimina</button>
-    `;
+  const created = new Date(report.created_at).toLocaleString();
+  const deleted = report.deleted_at ? new Date(report.deleted_at).toLocaleString() : "Ancora presente";
 
-    // Click sul bottone elimina
-    document.getElementById("delete-btn").onclick = () => {
+  details.innerHTML = `
+    <strong>Segnalazione ID:</strong> ${id}<br>
+    <strong>Data inserimento:</strong> ${created}<br>
+    <strong>Data rimozione:</strong> ${deleted}<br>
+    <strong>Via:</strong> ${report.street}<br>
+    <strong>Descrizione:</strong> ${report.description || "Nessuna"}<br><br>
+    <button id="delete-btn">Elimina</button>
+  `;
+
+  const btn = document.getElementById("delete-btn");
+  if (btn) {
+    btn.onclick = () => {
       fetch(`/report/${id}`, { method: "DELETE" })
         .then(() => {
-          details.innerHTML = "Segnalazione eliminata!";
+          // Aggiorna contatori e rimuove marker
+          if (markers[id]) clusterGroup.removeLayer(markers[id].marker);
+          delete markers[id];
+          if (allReports[id]) allReports[id].deleted_at = new Date().toISOString();
+          activeCount--;
+          deletedCount++;
+          updateStats();
+
+          details.innerHTML = "<em>Segnalazione eliminata!</em>";
         })
         .catch(err => {
           console.error("Errore eliminazione:", err);
@@ -314,7 +323,7 @@ function showDetails(id) {
   }
 }
 
-// --- abilita click sui marker ---
+// --- abilita click/tap sui marker ---
 function enableRemove(marker, id) {
   // CLICK o TAP = mostra dettagli
   marker.on("click", function(e) {
@@ -322,42 +331,20 @@ function enableRemove(marker, id) {
     showDetails(id);
   });
 
-  // DBLCLICK = cancella (solo su desktop)
+  // DBLCLICK = cancella solo su desktop
   marker.on("dblclick", function(e) {
     L.DomEvent.stopPropagation(e);
-    fetch(`/report/${id}`, { method: "DELETE" });
+    fetch(`/report/${id}`, { method: "DELETE" })
+      .then(() => {
+        if (markers[id]) clusterGroup.removeLayer(markers[id].marker);
+        delete markers[id];
+        if (allReports[id]) allReports[id].deleted_at = new Date().toISOString();
+        activeCount--;
+        deletedCount++;
+        updateStats();
+      })
+      .catch(err => console.error(err));
   });
-}
-
-// Funzione separata per mostrare dettagli del report
-function showDetails(id) {
-  const report = allReports[id];
-  if(report){
-    const created = new Date(report.created_at).toLocaleString();
-    const deleted = report.deleted_at ? new Date(report.deleted_at).toLocaleString() : "Ancora presente";
-    details.innerHTML = `
-      <strong>Segnalazione ID:</strong> ${id}<br>
-      <strong>Data inserimento:</strong> ${created}<br>
-      <strong>Data rimozione:</strong> ${deleted}<br>
-      <strong>Via:</strong> ${report.street}<br>
-      <strong>Descrizione:</strong> ${report.description || "Nessuna"}
-    `;
-  }
-}
-
-function showDetails(id) {
-  const report = allReports[id]
-  if(report){
-    const created = new Date(report.created_at).toLocaleString()
-    const deleted = report.deleted_at ? new Date(report.deleted_at).toLocaleString() : "Ancora presente"
-    details.innerHTML = `
-      <strong>Segnalazione ID:</strong> ${id}<br>
-      <strong>Data inserimento:</strong> ${created}<br>
-      <strong>Data rimozione:</strong> ${deleted}<br>
-      <strong>Via:</strong> ${report.street}<br>
-      <strong>Descrizione:</strong> ${report.description || "Nessuna"}
-    `
-  }
 }
 
 // --- BOTTONE CENTRA SU DI ME ---
