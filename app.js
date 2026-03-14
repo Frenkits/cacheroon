@@ -136,24 +136,31 @@ function showDetails(id) {
 // --- FUNZIONE ELIMINA REPORT ---
 function deleteReport(id) {
   const report = allReports[id];
-  if(!report || report.deleted_at) return; // già eliminato
+  if (!report || report.deleted_at) return; // già eliminato, esci
 
   fetch(`/report/${id}`, { method: "DELETE" })
     .then(() => {
-      if (markers[id]) clusterGroup.removeLayer(markers[id].marker);
-      delete markers[id];
+      // rimuove marker dalla mappa
+      if (markers[id]) {
+        clusterGroup.removeLayer(markers[id].marker);
+        delete markers[id];
+      }
 
+      // aggiorna lo stato del report
       report.deleted_at = new Date().toISOString();
 
-      activeCount--;
+      // aggiorna contatori
+      activeCount = Math.max(0, activeCount - 1);
       deletedCount++;
+
       updateStats();
 
-      if(details.innerHTML.includes(`Segnalazione ID: ${id}`)){
+      // aggiorna il pannello dettagli se è aperto
+      if (details.innerHTML.includes(`Segnalazione ID: ${id}`)) {
         details.innerHTML = "<em>Segnalazione eliminata!</em>";
       }
     })
-    .catch(err => console.error(err));
+    .catch(err => console.error("Errore eliminazione:", err));
 }
 
 // --- FUNZIONE ABILITA MARKER ---
