@@ -5,6 +5,13 @@ const WebSocket = require("ws");
 const cors = require("cors");
 const fetch = require("node-fetch"); // assicurati sia node-fetch@2
 
+// Certificati auto-firmati
+const options = {
+  key: fs.readFileSync('server.key'),
+  cert: fs.readFileSync('server.cert')
+}
+
+
 // --- FUNZIONE REVERSE GEOCODING ---
 async function getStreet(lat, lng) {
   const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`;
