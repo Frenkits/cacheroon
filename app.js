@@ -2,7 +2,7 @@
 const SUPABASE_URL = "https://gvlwrwcbcbsdjiauzxuq.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2bHdyd2NiY2JzZGppYXV6eHVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0MTYxNDMsImV4cCI6MjA4ODk5MjE0M30.uIDogfXNncPKjjwwMt-RUwpjpg6Qaa_pWCsZm6bOV1g";
 
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // --- MAPPA ---
 const map = L.map('map', { center: [41.9,12.5], zoom: 13, maxZoom: 19 });
@@ -10,7 +10,7 @@ map.doubleClickZoom.disable();
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-// Cluster
+// --- CLUSTER ---
 const clusterGroup = L.markerClusterGroup({
   iconCreateFunction: cluster => L.divIcon({
     html: `💩<br>${cluster.getChildCount()}`,
@@ -21,7 +21,7 @@ const clusterGroup = L.markerClusterGroup({
 });
 map.addLayer(clusterGroup);
 
-// Marker icona
+// --- MARKER ICON ---
 const poopIcon = L.divIcon({ html:"💩", className:"poop-marker", iconSize:[30,30], iconAnchor:[15,15] });
 
 // --- POSIZIONE UTENTE ---
@@ -54,7 +54,11 @@ const activeCountEl = document.getElementById("active-count");
 const deletedCountEl = document.getElementById("deleted-count");
 const totalCountEl = document.getElementById("total-count");
 let activeCount = 0, deletedCount = 0;
-function updateStats(){ activeCountEl.textContent=`Attive: ${activeCount}`; deletedCountEl.textContent=`Eliminate: ${deletedCount}`; totalCountEl.textContent=`Totali: ${activeCount+deletedCount}`; }
+function updateStats(){ 
+  activeCountEl.textContent=`Attive: ${activeCount}`; 
+  deletedCountEl.textContent=`Eliminate: ${deletedCount}`; 
+  totalCountEl.textContent=`Totali: ${activeCount+deletedCount}`; 
+}
 
 // --- CHAT ---
 const chat = document.getElementById("chat");
@@ -64,7 +68,8 @@ const markers = {};
 
 function addChat(message, reportId=null){
   const entry = document.createElement("div");
-  entry.className="chat-entry"; entry.textContent=message;
+  entry.className="chat-entry"; 
+  entry.textContent=message;
   if(reportId){
     entry.style.cursor="pointer";
     entry.addEventListener("click", ()=>{
@@ -102,13 +107,13 @@ function enableRemove(marker,id){
   });
   marker.on("dblclick", async e=>{
     L.DomEvent.stopPropagation(e);
-    await supabase.from("poop_reports").delete().eq("id", id);
+    await supabaseClient.from("poop_reports").delete().eq("id", id);
   });
 }
 
 // --- LOAD REPORTS ---
 async function loadReports(){
-  const { data: reports } = await supabase.from("poop_reports").select("*");
+  const { data: reports } = await supabaseClient.from("poop_reports").select("*");
   reports.forEach(p=>{
     const marker = L.marker([p.latitude,p.longitude], { icon:poopIcon });
     clusterGroup.addLayer(marker);
@@ -124,7 +129,7 @@ loadReports();
 
 // --- LOAD EVENTS ---
 async function loadEvents(){
-  const { data: events } = await supabase.from("events").select("*").order("timestamp",{ascending:true});
+  const { data: events } = await supabaseClient.from("events").select("*").order("timestamp",{ascending:true});
   events.forEach(ev=>{
     const formatted = new Date(ev.timestamp).toLocaleString();
     const street = ev.street || "Via sconosciuta";
@@ -136,7 +141,7 @@ async function loadEvents(){
 loadEvents();
 
 // --- SUPABASE REALTIME ---
-supabase.channel("realtime-poop")
+supabaseClient.channel("realtime-poop")
   .on("postgres_changes", { event:"INSERT", schema:"public", table:"poop_reports" }, payload=>{
     const p = payload.new;
     const marker = L.marker([p.latitude,p.longitude], { icon:poopIcon });
@@ -150,7 +155,13 @@ supabase.channel("realtime-poop")
   })
   .on("postgres_changes", { event:"DELETE", schema:"public", table:"poop_reports" }, payload=>{
     const data = markers[payload.old.id];
-    if(data){ clusterGroup.removeLayer(data.marker); delete markers[payload.old.id]; addChat(`❌ Cacca rimossa il ${new Date().toLocaleString()} in ${data.street}`, payload.old.id); if(allReports[payload.old.id]) allReports[payload.old.id].deleted_at=new Date().toISOString(); activeCount--; deletedCount++; updateStats(); }
+    if(data){ 
+      clusterGroup.removeLayer(data.marker); 
+      delete markers[payload.old.id]; 
+      addChat(`❌ Cacca rimossa il ${new Date().toLocaleString()} in ${data.street}`, payload.old.id); 
+      if(allReports[payload.old.id]) allReports[payload.old.id].deleted_at=new Date().toISOString(); 
+      activeCount--; deletedCount++; updateStats(); 
+    }
   })
   .subscribe();
 
@@ -162,13 +173,17 @@ map.on("click", async function(e){
   const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, { headers:{ "User-Agent":"CacheroonApp" }});
   const streetData = await res.json();
   const street = streetData.address?.road || "Via sconosciuta";
-  await supabase.from("poop_reports").insert({ latitude:lat, longitude:lng, street, description });
+  await supabaseClient.from("poop_reports").insert({ latitude:lat, longitude:lng, street, description });
 });
 
 // --- CONTROLLO LOCALIZZAZIONE UTENTE ---
 const locateControl = L.control({position:"topleft"});
 locateControl.onAdd = ()=>{
-  const btn = L.DomUtil.create("button"); btn.innerHTML="📍"; btn.title="Vai alla tua posizione"; btn.style.background="white"; btn.style.border="1px solid #ccc"; btn.style.padding="6px"; btn.style.cursor="pointer"; btn.style.fontSize="18px"; L.DomEvent.disableClickPropagation(btn);
+  const btn = L.DomUtil.create("button"); 
+  btn.innerHTML="📍"; btn.title="Vai alla tua posizione"; 
+  btn.style.background="white"; btn.style.border="1px solid #ccc"; btn.style.padding="6px"; 
+  btn.style.cursor="pointer"; btn.style.fontSize="18px"; 
+  L.DomEvent.disableClickPropagation(btn);
   btn.onclick = e=>{ if(userPosition) map.setView(userPosition,17); };
   return btn;
 };
@@ -177,7 +192,12 @@ locateControl.addTo(map);
 // --- CONTROLLO SEGNALA CACCA ---
 const poopControl = L.control({position:"topleft"});
 poopControl.onAdd = ()=>{
-  const btn = L.DomUtil.create("button"); btn.innerHTML="💩"; btn.title="Segnala cacca qui"; btn.style.background="white"; btn.style.border="1px solid #ccc"; btn.style.padding="6px"; btn.style.cursor="pointer"; btn.style.fontSize="18px"; btn.style.marginTop="5px"; L.DomEvent.disableClickPropagation(btn);
+  const btn = L.DomUtil.create("button"); 
+  btn.innerHTML="💩"; btn.title="Segnala cacca qui"; 
+  btn.style.background="white"; btn.style.border="1px solid #ccc"; 
+  btn.style.padding="6px"; btn.style.cursor="pointer"; btn.style.fontSize="18px"; 
+  btn.style.marginTop="5px"; 
+  L.DomEvent.disableClickPropagation(btn);
   btn.onclick = async e=>{
     if(!userPosition){ alert("Posizione GPS non ancora disponibile"); return; }
     const description = prompt("Descrizione della cacca (facoltativa)");
@@ -185,7 +205,7 @@ poopControl.onAdd = ()=>{
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, { headers:{ "User-Agent":"CacheroonApp" }});
     const streetData = await res.json();
     const street = streetData.address?.road || "Via sconosciuta";
-    await supabase.from("poop_reports").insert({ latitude:lat, longitude:lng, street, description });
+    await supabaseClient.from("poop_reports").insert({ latitude:lat, longitude:lng, street, description });
   };
   return btn;
 };
