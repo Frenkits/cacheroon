@@ -58,10 +58,7 @@ if ("geolocation" in navigator) {
   }, err => {
     console.log("GPS errore:", err);
     const saved = localStorage.getItem("lastUserPosition");
-    if (saved) {
-      userPosition = JSON.parse(saved);
-      map.setView(userPosition, 16);
-    }
+    if (saved) { userPosition = JSON.parse(saved); map.setView(userPosition, 16); }
   }, { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 });
 } else {
   const saved = localStorage.getItem("lastUserPosition");
@@ -80,17 +77,19 @@ const totalCountEl = document.getElementById("total-count");
 
 let activeCount = 0;
 let deletedCount = 0;
+let totalCount = 0; // totale solo per nuove cacche
 
 function updateStats(){
   activeCountEl.textContent = `Attive: ${activeCount}`;
   deletedCountEl.textContent = `Eliminate: ${deletedCount}`;
-  totalCountEl.textContent = `Totali: ${activeCount + deletedCount}`;
+  totalCountEl.textContent = `Totali: ${totalCount}`;
 }
 
 // carica statistiche dal server
 fetch("/stats").then(r => r.json()).then(data => {
   activeCount = data.active;
   deletedCount = data.deleted;
+  totalCount = activeCount + deletedCount; // inizializza totale
   updateStats();
 });
 
@@ -124,38 +123,27 @@ function showDetails(id) {
     <strong>Data rimozione:</strong> ${deleted}<br>
     <strong>Via:</strong> ${report.street}<br>
     <strong>Descrizione:</strong> ${report.description || "Nessuna"}<br><br>
-    <button id="delete-btn">Elimina</button>
+    ${!report.deleted_at ? '<button id="delete-btn">Elimina</button>' : ''}
   `;
 
   const btn = document.getElementById("delete-btn");
-  if (btn) {
-    btn.onclick = () => deleteReport(id);
-  }
+  if (btn) btn.onclick = () => deleteReport(id);
 }
 
 // --- FUNZIONE ELIMINA REPORT ---
 function deleteReport(id) {
   const report = allReports[id];
-  if (!report || report.deleted_at) return; // già eliminato, esci
+  if (!report || report.deleted_at) return;
 
   fetch(`/report/${id}`, { method: "DELETE" })
     .then(() => {
-      // rimuove marker dalla mappa
-      if (markers[id]) {
-        clusterGroup.removeLayer(markers[id].marker);
-        delete markers[id];
-      }
-
-      // aggiorna lo stato del report
+      if (markers[id]) { clusterGroup.removeLayer(markers[id].marker); delete markers[id]; }
       report.deleted_at = new Date().toISOString();
 
-      // aggiorna contatori
       activeCount = Math.max(0, activeCount - 1);
       deletedCount++;
-
       updateStats();
 
-      // aggiorna il pannello dettagli se è aperto
       if (details.innerHTML.includes(`Segnalazione ID: ${id}`)) {
         details.innerHTML = "<em>Segnalazione eliminata!</em>";
       }
@@ -165,20 +153,12 @@ function deleteReport(id) {
 
 // --- FUNZIONE ABILITA MARKER ---
 function enableRemove(marker, id) {
-  // click/tap = mostra dettagli
   marker.on("click", e => { L.DomEvent.stopPropagation(e); showDetails(id); });
-
-  // doppio click desktop = cancella
-  //marker.on("dblclick", e => { L.DomEvent.stopPropagation(e); deleteReport(id); });
 
   // long press mobile = cancella
   let pressTimer;
-  marker.on("mousedown touchstart", e => {
-    pressTimer = setTimeout(() => deleteReport(id), 600);
-  });
-  marker.on("mouseup touchend touchmove touchcancel", e => {
-    clearTimeout(pressTimer);
-  });
+  marker.on("mousedown touchstart", e => { pressTimer = setTimeout(() => deleteReport(id), 600); });
+  marker.on("mouseup touchend touchmove touchcancel", e => { clearTimeout(pressTimer); });
 }
 
 // --- CARICA EVENTI E REPORT ---
@@ -211,7 +191,15 @@ fetch("/reports").then(r => r.json()).then(data => {
 // --- CLICK MAPPA PER NUOVA CACCA ---
 map.on("click", e => {
   const description = prompt("Inserisci una descrizione della cacca (facoltativo)");
-  fetch("/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lat: e.latlng.lat, lng: e.latlng.lng, description }) });
+  fetch("/report", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ lat: e.latlng.lat, lng: e.latlng.lng, description })
+  }).then(() => {
+    activeCount++;
+    totalCount++;
+    updateStats();
+  });
 });
 
 // --- WEBSOCKET ---
@@ -228,7 +216,9 @@ socket.onmessage = event => {
       allReports[p.id] = { street: p.street, created_at: p.created_at, description: p.description };
       enableRemove(marker, p.id);
       addChat(`✅ Cacca aggiunta il ${new Date(p.created_at).toLocaleString()} in ${p.street}`, p.id);
+
       activeCount++;
+      totalCount++;
       updateStats();
     }
   } else if (msg.type === "delete") {
@@ -237,9 +227,11 @@ socket.onmessage = event => {
       clusterGroup.removeLayer(data.marker);
       delete markers[msg.id];
       if (allReports[msg.id]) allReports[msg.id].deleted_at = new Date().toISOString();
+
       activeCount = Math.max(0, activeCount - 1);
       deletedCount++;
       updateStats();
+
       addChat(`❌ Cacca rimossa!`, msg.id);
     }
   }
@@ -270,7 +262,8 @@ function addMapControls(){
     btn.onclick=e=>{
       if(!userPosition){ alert("Posizione GPS non disponibile"); return; }
       const description = prompt("Descrizione della cacca (facoltativa)");
-      fetch("/report",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ lat:userPosition[0], lng:userPosition[1], description }) });
+      fetch("/report",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ lat:userPosition[0], lng:userPosition[1], description }) })
+        .then(() => { activeCount++; totalCount++; updateStats(); });
     };
     return btn;
   };
