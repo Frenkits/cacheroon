@@ -1,3 +1,4 @@
+// app.js
 const map = L.map('map', {
   center: [41.9, 12.5],
   zoom: 13,
@@ -10,7 +11,7 @@ const clusterGroup = L.markerClusterGroup({
   iconCreateFunction: function(cluster) {
     const count = cluster.getChildCount();
     return L.divIcon({
-      html: 💩<br>${count},
+      html: `💩<br>${count}`,
       className: 'poop-cluster',
       iconSize: [40, 40],
       iconAnchor: [20, 20]
@@ -108,9 +109,9 @@ let activeCount = 0
 let deletedCount = 0
 
 function updateStats(){
-  activeCountEl.textContent = Attive: ${activeCount}
-  deletedCountEl.textContent = Eliminate: ${deletedCount}
-  totalCountEl.textContent = Totali: ${activeCount + deletedCount}
+  activeCountEl.textContent = `Attive: ${activeCount}`
+  deletedCountEl.textContent = `Eliminate: ${deletedCount}`
+  totalCountEl.textContent = `Totali: ${activeCount + deletedCount}`
 }
 
 // carica statistiche dal server
@@ -148,13 +149,13 @@ function addChat(message, reportId=null){
       if(report){
         const created = new Date(report.created_at).toLocaleString()
         const deleted = report.deleted_at ? new Date(report.deleted_at).toLocaleString() : "Ancora presente"
-        details.innerHTML = 
+        details.innerHTML = `
           <strong>Segnalazione ID:</strong> ${reportId}<br>
           <strong>Data inserimento:</strong> ${created}<br>
           <strong>Data rimozione:</strong> ${deleted}<br>
           <strong>Via:</strong> ${report.street}<br>
           <strong>Descrizione:</strong> ${report.description || "Nessuna"}
-        
+        `
       }
     })
   }
@@ -178,10 +179,10 @@ fetch("/events")
     const street = ev.street || "Via sconosciuta"
     const description = ev.description || null
     if(ev.type==="add"){
-      addChat(✅ Cacca segnalata il ${formatted} in ${street}, ev.report_id)
+      addChat(`✅ Cacca segnalata il ${formatted} in ${street}`, ev.report_id)
       allReports[ev.report_id] = { street, created_at: ev.timestamp, description }    }
     if(ev.type==="delete"){
-      addChat(❌ Cacca rimossa il ${formatted} in ${street}, ev.report_id)
+      addChat(`❌ Cacca rimossa il ${formatted} in ${street}`, ev.report_id)
       if(allReports[ev.report_id]){
         allReports[ev.report_id].deleted_at = ev.timestamp
       }
@@ -205,7 +206,7 @@ fetch("/reports")
     const date = new Date(p.created_at)
     const formatted = date.toLocaleString()
 
-    marker.bindTooltip(Aggiunta il: ${formatted}\n${p.street}, {direction:"top"})
+    marker.bindTooltip(`Aggiunta il: ${formatted}\n${p.street}`, {direction:"top"})
 
     markers[p.id] = { marker: marker, street: p.street, created_at: p.created_at, description: p.description }
     allReports[p.id] = { street: p.street, created_at: p.created_at, description: p.description }
@@ -232,7 +233,7 @@ map.on("click", function(e){
 })
 
 // WebSocket per aggiornamenti in tempo reale
-const socket = new WebSocket(ws://${window.location.hostname}:3000)
+const socket = new WebSocket(`ws://${window.location.hostname}:3000`)
 
 socket.onmessage = event=>{
   const msg = JSON.parse(event.data)
@@ -248,12 +249,12 @@ socket.onmessage = event=>{
       const date = new Date(p.created_at)
       const formatted = date.toLocaleString()
 
-      marker.bindTooltip(Aggiunta il: ${formatted}\n${p.street}, {direction:"top"})
+      marker.bindTooltip(`Aggiunta il: ${formatted}\n${p.street}`, {direction:"top"})
 
       markers[p.id] = { marker: marker, street: p.street, created_at: p.created_at, description: p.description }
       allReports[p.id] = { street: p.street, created_at: p.created_at, description: p.description }
       enableRemove(marker,p.id)
-      addChat(✅ Cacca aggiunta il ${formatted} in ${p.street}, p.id)
+      addChat(`✅ Cacca aggiunta il ${formatted} in ${p.street}`, p.id)
 
       activeCount++
       updateStats()
@@ -267,7 +268,7 @@ socket.onmessage = event=>{
       delete markers[msg.id]
 
       const formatted = new Date().toLocaleString()
-      addChat(❌ Cacca rimossa il ${formatted} in ${data.street}, msg.id)
+      addChat(`❌ Cacca rimossa il ${formatted} in ${data.street}`, msg.id)
 
       if(allReports[msg.id]){
         allReports[msg.id].deleted_at = new Date().toISOString()
@@ -280,83 +281,44 @@ socket.onmessage = event=>{
 }
 
 // Funzione per cancellare i marker con click
-// Funzione aggiornata per cancellare marker con mouse o touch
-// --- mostra dettagli nel pannello a destra ---
-function showDetails(id) {
-  const report = allReports[id];
-  if (report) {
-    const created = new Date(report.created_at).toLocaleString();
-    const deleted = report.deleted_at
-      ? new Date(report.deleted_at).toLocaleString()
-      : "Ancora presente";
+function enableRemove(marker,id){
 
-    details.innerHTML = 
-      <strong>Segnalazione ID:</strong> ${id}<br>
-      <strong>Data inserimento:</strong> ${created}<br>
-      <strong>Data rimozione:</strong> ${deleted}<br>
-      <strong>Via:</strong> ${report.street}<br>
-      <strong>Descrizione:</strong> ${report.description || "Nessuna"}<br><br>
-      <button id="delete-btn">Elimina</button>
-    ;
+  // CLICK = mostra dettagli
+  marker.on("click", function(e){
 
-    // Click sul bottone elimina
-    document.getElementById("delete-btn").onclick = () => {
-      fetch(/report/${id}, { method: "DELETE" })
-        .then(() => {
-          details.innerHTML = "Segnalazione eliminata!";
-        })
-        .catch(err => {
-          console.error("Errore eliminazione:", err);
-          alert("Errore durante l'eliminazione.");
-        });
-    };
-  }
-}
+    L.DomEvent.stopPropagation(e)
 
-// --- abilita click sui marker ---
-function enableRemove(marker, id) {
-  // CLICK o TAP = mostra dettagli
-  marker.on("click", function(e) {
-    L.DomEvent.stopPropagation(e);
-    showDetails(id);
-  });
+    const report = allReports[id]
 
-  // DBLCLICK = cancella (solo su desktop)
-  marker.on("dblclick", function(e) {
-    L.DomEvent.stopPropagation(e);
-    fetch(/report/${id}, { method: "DELETE" });
-  });
-}
+    if(report){
 
-// Funzione separata per mostrare dettagli del report
-function showDetails(id) {
-  const report = allReports[id];
-  if(report){
-    const created = new Date(report.created_at).toLocaleString();
-    const deleted = report.deleted_at ? new Date(report.deleted_at).toLocaleString() : "Ancora presente";
-    details.innerHTML = 
-      <strong>Segnalazione ID:</strong> ${id}<br>
-      <strong>Data inserimento:</strong> ${created}<br>
-      <strong>Data rimozione:</strong> ${deleted}<br>
-      <strong>Via:</strong> ${report.street}<br>
-      <strong>Descrizione:</strong> ${report.description || "Nessuna"}
-    ;
-  }
-}
+      const created = new Date(report.created_at).toLocaleString()
+      const deleted = report.deleted_at
+        ? new Date(report.deleted_at).toLocaleString()
+        : "Ancora presente"
 
-function showDetails(id) {
-  const report = allReports[id]
-  if(report){
-    const created = new Date(report.created_at).toLocaleString()
-    const deleted = report.deleted_at ? new Date(report.deleted_at).toLocaleString() : "Ancora presente"
-    details.innerHTML = 
-      <strong>Segnalazione ID:</strong> ${id}<br>
-      <strong>Data inserimento:</strong> ${created}<br>
-      <strong>Data rimozione:</strong> ${deleted}<br>
-      <strong>Via:</strong> ${report.street}<br>
-      <strong>Descrizione:</strong> ${report.description || "Nessuna"}
-    
-  }
+      details.innerHTML = `
+        <strong>Segnalazione ID:</strong> ${id}<br>
+        <strong>Data inserimento:</strong> ${created}<br>
+        <strong>Data rimozione:</strong> ${deleted}<br>
+        <strong>Via:</strong> ${report.street}<br>
+        <strong>Descrizione:</strong> ${report.description || "Nessuna"}
+      `
+    }
+
+  })
+
+  // DOPPIO CLICK = cancella
+  marker.on("dblclick", function(e){
+
+    L.DomEvent.stopPropagation(e)
+
+    fetch(`/report/${id}`,{
+      method:"DELETE"
+    })
+
+  })
+
 }
 
 // --- BOTTONE CENTRA SU DI ME ---
