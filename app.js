@@ -201,7 +201,8 @@ map.on("click", function(e){
 })
 
 // WebSocket per aggiornamenti in tempo reale
-const socket = new WebSocket(`ws://${window.location.hostname}:3000`)
+const socket = new WebSocket(`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`)
+
 
 socket.onmessage = event=>{
   const msg = JSON.parse(event.data)
