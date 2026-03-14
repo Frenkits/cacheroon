@@ -282,49 +282,51 @@ socket.onmessage = event=>{
 
 // Funzione per cancellare i marker con click
 // Funzione aggiornata per cancellare marker con mouse o touch
-function enableRemove(marker, id) {
-  let pressTimer;
-
-  // CLICK / POINTER = mostra dettagli
-  marker.on("click", function(e) {
-    L.DomEvent.stopPropagation(e);
-    showDetails(id);
-  });
-
-  // POINTERDOWN = mouse o touch
-  marker.on("pointerdown", function(e) {
-    pressTimer = setTimeout(() => {
-      // cancella report dopo 600ms
-      fetch(`/report/${id}`, { method: "DELETE" });
-      L.DomEvent.stopPropagation(e);
-    }, 600);
-  });
-
-  marker.on("pointerup pointerleave", function(e) {
-    clearTimeout(pressTimer);
-  });
-
-  // DBLCLICK (solo mouse)
-  marker.on("dblclick", function(e) {
-    L.DomEvent.stopPropagation(e);
-    fetch(`/report/${id}`, { method: "DELETE" });
-  });
-}
-
-// funzione separata per mostrare dettagli
+// --- mostra dettagli nel pannello a destra ---
 function showDetails(id) {
   const report = allReports[id];
-  if(report){
+  if (report) {
     const created = new Date(report.created_at).toLocaleString();
-    const deleted = report.deleted_at ? new Date(report.deleted_at).toLocaleString() : "Ancora presente";
+    const deleted = report.deleted_at
+      ? new Date(report.deleted_at).toLocaleString()
+      : "Ancora presente";
+
     details.innerHTML = `
       <strong>Segnalazione ID:</strong> ${id}<br>
       <strong>Data inserimento:</strong> ${created}<br>
       <strong>Data rimozione:</strong> ${deleted}<br>
       <strong>Via:</strong> ${report.street}<br>
-      <strong>Descrizione:</strong> ${report.description || "Nessuna"}
+      <strong>Descrizione:</strong> ${report.description || "Nessuna"}<br><br>
+      <button id="delete-btn">Elimina</button>
     `;
+
+    // Click sul bottone elimina
+    document.getElementById("delete-btn").onclick = () => {
+      fetch(`/report/${id}`, { method: "DELETE" })
+        .then(() => {
+          details.innerHTML = "Segnalazione eliminata!";
+        })
+        .catch(err => {
+          console.error("Errore eliminazione:", err);
+          alert("Errore durante l'eliminazione.");
+        });
+    };
   }
+}
+
+// --- abilita click sui marker ---
+function enableRemove(marker, id) {
+  // CLICK o TAP = mostra dettagli
+  marker.on("click", function(e) {
+    L.DomEvent.stopPropagation(e);
+    showDetails(id);
+  });
+
+  // DBLCLICK = cancella (solo su desktop)
+  marker.on("dblclick", function(e) {
+    L.DomEvent.stopPropagation(e);
+    fetch(`/report/${id}`, { method: "DELETE" });
+  });
 }
 
 // Funzione separata per mostrare dettagli del report
