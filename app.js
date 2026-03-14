@@ -281,17 +281,15 @@ socket.onmessage = event=>{
 }
 
 // Funzione per cancellare i marker con click
-function enableRemove(marker,id){
+function enableRemove(marker, id) {
 
   // CLICK = mostra dettagli
-  marker.on("click", function(e){
-
+  marker.on("click", function(e) {
     L.DomEvent.stopPropagation(e)
 
     const report = allReports[id]
 
-    if(report){
-
+    if (report) {
       const created = new Date(report.created_at).toLocaleString()
       const deleted = report.deleted_at
         ? new Date(report.deleted_at).toLocaleString()
@@ -305,20 +303,25 @@ function enableRemove(marker,id){
         <strong>Descrizione:</strong> ${report.description || "Nessuna"}
       `
     }
-
   })
 
-  // DOPPIO CLICK = cancella
-  marker.on("dblclick", function(e){
-
+  // DOPPIO CLICK DESKTOP = cancella
+  marker.on("dblclick", function(e) {
     L.DomEvent.stopPropagation(e)
-
-    fetch(`/report/${id}`,{
-      method:"DELETE"
-    })
-
+    fetch(`/report/${id}`, { method: "DELETE" })
   })
 
+  // --- AGGIUNTO SUPPORTO TOUCH ---
+  let lastTap = 0
+  marker.on("touchend", function(e) {
+    const currentTime = new Date().getTime()
+    const tapLength = currentTime - lastTap
+    if (tapLength < 500 && tapLength > 0) { // doppio tap entro 500ms
+      L.DomEvent.stopPropagation(e)
+      fetch(`/report/${id}`, { method: "DELETE" })
+    }
+    lastTap = currentTime
+  })
 }
 
 // --- BOTTONE CENTRA SU DI ME ---
