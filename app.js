@@ -247,46 +247,36 @@ socket.onmessage = event=>{
 }
 
 // Funzione per cancellare i marker con click/double tap
-function enableRemove(marker, id) {
+function enableRemove(marker, id){
 
-  // CLICK = mostra dettagli
   marker.on("click", function(e){
     L.DomEvent.stopPropagation(e)
     const report = allReports[id]
     if(report){
       const created = new Date(report.created_at).toLocaleString()
       const deleted = report.deleted_at ? new Date(report.deleted_at).toLocaleString() : "Ancora presente"
+
+      // Pannello dettagli con pulsante elimina
       details.innerHTML = `
         <strong>Segnalazione ID:</strong> ${id}<br>
         <strong>Data inserimento:</strong> ${created}<br>
         <strong>Data rimozione:</strong> ${deleted}<br>
         <strong>Via:</strong> ${report.street}<br>
-        <strong>Descrizione:</strong> ${report.description || "Nessuna"}
+        <strong>Descrizione:</strong> ${report.description || "Nessuna"}<br>
+        <button id="delete-btn" style="margin-top:10px;padding:5px 10px;cursor:pointer;">Elimina cacca</button>
       `
+
+      // Listener sul pulsante elimina
+      document.getElementById("delete-btn").onclick = function(){
+        fetch(`/report/${id}`, { method:"DELETE" })
+      }
     }
   })
 
-  // DOPPIO CLICK DESKTOP = cancella
+  // DOPPIO CLICK DESKTOP (opzionale, mantiene funzionalità)
   marker.on("dblclick", function(e){
     L.DomEvent.stopPropagation(e)
     fetch(`/report/${id}`,{ method:"DELETE" })
-  })
-
-  // LONG PRESS TOUCH MOBILE
-  let pressTimer = null
-  marker.on("touchstart", function(e){
-    L.DomEvent.stopPropagation(e)
-    pressTimer = setTimeout(()=>{
-      fetch(`/report/${id}`, { method:"DELETE" })
-    }, 800) // 800ms pressione lunga
-  })
-
-  marker.on("touchend", function(e){
-    clearTimeout(pressTimer)
-  })
-
-  marker.on("touchmove", function(e){
-    clearTimeout(pressTimer)
   })
 }
 
