@@ -1,17 +1,9 @@
 // server.js
-const fs = require("fs");               // serve per leggere i certificati
-const https = require("https");         // HTTPS server
 const express = require("express");
 const { Pool } = require("pg");
 const WebSocket = require("ws");
 const cors = require("cors");
-const fetch = require("node-fetch");    // assicurati sia node-fetch@2
-
-// --- CERTIFICATI AUTO-FIRMATI ---
-const options = {
-  key: fs.readFileSync("server.key"),
-  cert: fs.readFileSync("server.cert")
-};
+const fetch = require("node-fetch"); // assicurati sia node-fetch@2
 
 // --- FUNZIONE REVERSE GEOCODING ---
 async function getStreet(lat, lng) {
@@ -26,7 +18,6 @@ async function getStreet(lat, lng) {
   }
 }
 
-// --- EXPRESS ---
 const app = express();
 app.use(express.json());
 app.use(cors());
@@ -41,18 +32,18 @@ const pool = new Pool({
   port: 5432
 });
 
-// --- ROUTE ---
-app.get("/reports", async (req, res) => {
+// --- ROUTE CON DEBUG ---
+app.get("/reports", async (req,res)=>{
   try {
     const result = await pool.query("SELECT * FROM poop_reports");
     res.json(result.rows);
-  } catch (err) {
+  } catch(err){
     console.error("Errore /reports:", err);
     res.status(500).send("Internal Server Error: " + err.message);
   }
 });
 
-app.get("/events", async (req, res) => {
+app.get("/events", async (req,res)=>{
   try {
     const result = await pool.query(`
       SELECT 
@@ -66,13 +57,13 @@ app.get("/events", async (req, res) => {
       LIMIT 50
     `);
     res.json(result.rows.reverse());
-  } catch (err) {
+  } catch(err){
     console.error("Errore /events:", err);
     res.status(500).send("Internal Server Error: " + err.message);
   }
 });
 
-app.get("/stats", async (req, res) => {
+app.get("/stats", async (req,res)=>{
   try {
     const active = await pool.query("SELECT COUNT(*) FROM poop_reports");
     const deleted = await pool.query("SELECT COUNT(*) FROM events WHERE type='delete'");
@@ -81,21 +72,21 @@ app.get("/stats", async (req, res) => {
       deleted: parseInt(deleted.rows[0].count),
       total: parseInt(active.rows[0].count) + parseInt(deleted.rows[0].count)
     });
-  } catch (err) {
+  } catch(err){
     console.error("Errore /stats:", err);
     res.status(500).send("Internal Server Error: " + err.message);
   }
 });
 
-// --- POST / DELETE REPORT ---
-app.post("/report", async (req, res) => {
+// --- POST E DELETE REPORT ---
+app.post("/report", async (req,res)=>{
   try {
     const { lat, lng, description } = req.body;
-    const street = await getStreet(lat, lng);
+    const street = await getStreet(lat,lng);
 
     const result = await pool.query(
       "INSERT INTO poop_reports(latitude,longitude,street,description) VALUES($1,$2,$3,$4) RETURNING *",
-      [lat, lng, street, description || null]
+      [lat,lng,street,description || null]
     );
 
     await pool.query(
@@ -103,15 +94,15 @@ app.post("/report", async (req, res) => {
       ["add", result.rows[0].id, street, description]
     );
 
-    broadcast(JSON.stringify({ type: "new", data: result.rows[0] }));
+    broadcast(JSON.stringify({ type:"new", data:result.rows[0] }));
     res.json(result.rows[0]);
-  } catch (err) {
+  } catch(err){
     console.error("Errore /report POST:", err);
     res.status(500).send("Internal Server Error: " + err.message);
   }
 });
 
-app.delete("/report/:id", async (req, res) => {
+app.delete("/report/:id", async (req,res)=>{
   const id = req.params.id;
   try {
     const streetResult = await pool.query(
@@ -128,31 +119,29 @@ app.delete("/report/:id", async (req, res) => {
 
     await pool.query("DELETE FROM poop_reports WHERE id=$1", [id]);
 
-    broadcast(JSON.stringify({ type: "delete", id: id }));
+    broadcast(JSON.stringify({ type:"delete", id:id }));
     res.sendStatus(200);
-  } catch (err) {
+  } catch(err){
     console.error("Errore /report DELETE:", err);
     res.status(500).send("Internal Server Error: " + err.message);
   }
 });
 
-// --- SERVER HTTPS E WEBSOCKET ---
-const server = https.createServer(options, app);
-
-server.listen(443, "0.0.0.0", () => {
-  console.log("Server HTTPS auto-firmato in ascolto sulla porta 443");
+// --- SERVER E WEBSOCKET ---
+const server = app.listen(3000, "0.0.0.0", ()=>{
+  console.log("Server in ascolto sulla porta 3000");
 });
 
 const wss = new WebSocket.Server({ server });
 let clients = [];
 
-wss.on("connection", ws => {
+wss.on("connection", ws=>{
   clients.push(ws);
-  ws.on("close", () => {
+  ws.on("close", ()=>{
     clients = clients.filter(c => c !== ws);
   });
 });
 
-function broadcast(message) {
+function broadcast(message){
   clients.forEach(c => c.send(message));
 }
