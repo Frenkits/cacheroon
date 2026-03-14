@@ -135,18 +135,25 @@ function showDetails(id) {
 
 // --- FUNZIONE ELIMINA REPORT ---
 function deleteReport(id) {
+  const report = allReports[id];
+  if(!report || report.deleted_at) return; // già eliminato
+
   fetch(`/report/${id}`, { method: "DELETE" })
     .then(() => {
       if (markers[id]) clusterGroup.removeLayer(markers[id].marker);
-      if (allReports[id]) allReports[id].deleted_at = new Date().toISOString();
       delete markers[id];
-      activeCount = Math.max(0, activeCount - 1); // mai negativo
+
+      report.deleted_at = new Date().toISOString();
+
+      activeCount--;
       deletedCount++;
       updateStats();
-      details.innerHTML = "<em>Segnalazione eliminata!</em>";
-      addChat(`❌ Cacca rimossa!`, id);
+
+      if(details.innerHTML.includes(`Segnalazione ID: ${id}`)){
+        details.innerHTML = "<em>Segnalazione eliminata!</em>";
+      }
     })
-    .catch(err => { console.error(err); alert("Errore eliminazione."); });
+    .catch(err => console.error(err));
 }
 
 // --- FUNZIONE ABILITA MARKER ---
