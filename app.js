@@ -168,7 +168,11 @@ fetch("/events")
 })
 
 // Layer mappa
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map)
+// Layer mappa
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; OpenStreetMap'
+}).addTo(map)
 
 // Carica i marker già presenti
 fetch("/reports")
